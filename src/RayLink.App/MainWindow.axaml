@@ -1,0 +1,155 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RayLink.App.MainWindow"
+        Width="1120" Height="760"
+        MinWidth="900" MinHeight="620"
+        Title="RayLink · Rayfish Agent 通信"
+        Background="#0B1020">
+  <Window.Styles>
+    <Style Selector="TextBlock.title">
+      <Setter Property="FontSize" Value="25" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="#F5F7FF" />
+    </Style>
+    <Style Selector="TextBlock.subtitle">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#98A2B3" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#141B31" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#E8ECF8" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#5966F2" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16,10" />
+    </Style>
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="#232D4D" />
+      <Setter Property="Foreground" Value="#DCE2F5" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14,9" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#0E1528" />
+      <Setter Property="BorderBrush" Value="#2B375A" />
+      <Setter Property="Foreground" Value="#E8ECF8" />
+      <Setter Property="CornerRadius" Value="7" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*" Margin="28">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="title" Text="RayLink" />
+        <TextBlock Classes="subtitle" Text="基于 Rayfish 虚拟网络的跨网络 Agent 通信 MVP" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="5">
+        <TextBlock Text="连接状态" Foreground="#98A2B3" HorizontalAlignment="Right" />
+        <TextBlock Text="{Binding ConnectionStatus}" Foreground="#6EE7B7" FontWeight="SemiBold" HorizontalAlignment="Right" />
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Row="1" ColumnDefinitions="350,*" ColumnSpacing="20">
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16">
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="section" Text="本机与 Rayfish" />
+              <TextBlock Text="{Binding RayStatus}" Foreground="#A7F3D0" TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Text="内置 Rayfish" IsReadOnly="True" />
+                <Button Grid.Column="1" Classes="secondary" Content="检查服务" Command="{Binding CheckRayfishCommand}" />
+              </Grid>
+              <TextBlock Text="安装包已包含 Rayfish。点击下方启动按钮会自动启动 Rayfish 服务和虚拟网络。" Foreground="#A7F3D0" FontSize="12" TextWrapping="Wrap" />
+              <TextBox Text="{Binding Settings.DisplayName}" PlaceholderText="本机名称" />
+              <TextBox Text="{Binding Settings.Port}" PlaceholderText="通信端口" />
+              <Button Classes="primary" Content="启动服务端模式" Command="{Binding StartServerCommand}" />
+              <TextBox Text="{Binding Settings.LocalAddress}" IsReadOnly="True" PlaceholderText="本机 Rayfish IPv6（启动后自动识别）" />
+              <TextBlock Text="服务端会监听 Rayfish 分配的 IPv6 地址。首次启动可能会弹出系统权限确认。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="section" Text="Rayfish 网络配置" />
+              <TextBlock Text="首次使用只需一台电脑创建网络并生成邀请，另一台粘贴邀请代码加入。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
+              <TextBox Text="{Binding NetworkName}" PlaceholderText="网络名称，例如 team" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <Button Classes="secondary" Content="创建网络" Command="{Binding CreateNetworkCommand}" />
+                <Button Grid.Column="1" Classes="secondary" Content="生成邀请" Command="{Binding InviteCommand}" />
+              </Grid>
+              <TextBox Text="{Binding InviteCode}" PlaceholderText="粘贴 Rayfish 邀请代码" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="58" />
+              <Button Classes="primary" Content="加入网络" Command="{Binding JoinNetworkCommand}" />
+              <TextBlock Text="{Binding NetworkStatus}" Foreground="#A7F3D0" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="section" Text="连接远程桌面端" />
+              <TextBox Text="{Binding Settings.RemoteAddress}" PlaceholderText="远程 Rayfish IPv6，例如 200:..." />
+              <Button Classes="primary" Content="连接" Command="{Binding ConnectCommand}" />
+              <Button Classes="secondary" Content="断开连接" Command="{Binding DisconnectCommand}" />
+              <TextBlock Text="两端安装同一个 RayLink 版本，并通过 Rayfish 加入同一个网络后，使用对方地址连接。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="section" Text="运行日志" />
+              <TextBox Text="{Binding Log}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="14">
+        <Border Classes="card">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+            <Border Width="10" Height="10" CornerRadius="5" Background="#34D399" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Spacing="3">
+              <TextBlock Text="点对点消息" Foreground="#E8ECF8" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Text="可靠、有序的文本通信 · 20 秒业务心跳" Foreground="#8792AC" FontSize="12" />
+            </StackPanel>
+            <TextBlock Grid.Column="2" Text="MVP" Foreground="#A5B4FC" FontWeight="Bold" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Classes="card" Padding="14">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Messages}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="#1B2542" CornerRadius="8" Padding="12" Margin="0,0,0,9">
+                    <StackPanel Spacing="4">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding Sender}" Foreground="#B8C2FF" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1" Text="{Binding Time}" Foreground="#7784A5" FontSize="11" />
+                      </Grid>
+                      <TextBlock Text="{Binding Text}" Foreground="#E8ECF8" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="2" Classes="card">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBox Text="{Binding MessageDraft}" PlaceholderText="输入要发送给对端的消息…" AcceptsReturn="True" MinHeight="45" VerticalContentAlignment="Center" />
+            <Button Grid.Column="1" Classes="primary" Content="发送" Command="{Binding SendCommand}" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>
