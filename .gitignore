@@ -27,3 +27,6 @@ Thumbs.db
 # Logs and local settings
 *.log
 *.tmp
+
+# Rust build output
+native/**/target/

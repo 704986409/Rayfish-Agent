@@ -1,0 +1,18 @@
+[package]
+name = "raylink-iroh-transport"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+description = "Native Iroh transport bridge for RayLink"
+
+[dependencies]
+iroh = { git = "https://github.com/n0-computer/iroh.git", rev = "25811699c576f648c757ca1f88003507b8c4e164", default-features = false, features = ["tls-ring"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+data-encoding = "2.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.44", features = ["io-util", "io-std", "macros", "rt-multi-thread", "sync", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+uuid = { version = "1", features = ["v4"] }

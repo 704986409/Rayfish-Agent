@@ -14,11 +14,11 @@
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\artifacts\win-x64-single\RayLink.exe" LogicalName="payload\RayLink.exe" />
-    <EmbeddedResource Include="..\..\third-party\rayfish\ray-windows-x86_64.msi" LogicalName="payload\ray-windows-x86_64.msi" />
+    <EmbeddedResource Include="..\..\native\iroh-transport\target\x86_64-pc-windows-msvc\release\raylink-iroh-transport.exe" LogicalName="payload\RayLink.Transport.exe" />
   </ItemGroup>
 </Project>

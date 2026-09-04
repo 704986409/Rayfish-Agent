@@ -4,30 +4,22 @@ namespace RayLink.App.Models;
 
 public sealed class AppSettings
 {
-    public string RayExecutable { get; set; } = "";
+    public string TransportExecutable { get; set; } = "";
     public string DisplayName { get; set; } = Environment.MachineName;
-    public string LocalAddress { get; set; } = "";
-    public string RemoteAddress { get; set; } = "";
-    public int Port { get; set; } = 42821;
-    public string NetworkName { get; set; } = "team";
+    public string LocalEndpointId { get; set; } = "";
+    public string LocalEndpointAddress { get; set; } = "";
+    public string RemoteEndpointAddress { get; set; } = "";
 
     public static string SettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "RayLink",
-        "settings.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RayLink", "settings.json");
+
+    public string GetIdentityKeyPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RayLink", "iroh-secret-key");
 
     public static AppSettings Load()
     {
-        try
-        {
-            return File.Exists(SettingsPath)
-                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath)) ?? new AppSettings()
-                : new AppSettings();
-        }
-        catch
-        {
-            return new AppSettings();
-        }
+        try { return File.Exists(SettingsPath) ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsPath)) ?? new AppSettings() : new AppSettings(); }
+        catch { return new AppSettings(); }
     }
 
     public void Save()

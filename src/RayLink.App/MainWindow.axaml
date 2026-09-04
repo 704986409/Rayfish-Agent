@@ -3,7 +3,7 @@
         x:Class="RayLink.App.MainWindow"
         Width="1120" Height="760"
         MinWidth="900" MinHeight="620"
-        Title="RayLink · Rayfish Agent 通信"
+        Title="RayLink · Iroh Agent 通信"
         Background="#0B1020">
   <Window.Styles>
     <Style Selector="TextBlock.title">
@@ -49,7 +49,7 @@
     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
       <StackPanel Spacing="6">
         <TextBlock Classes="title" Text="RayLink" />
-        <TextBlock Classes="subtitle" Text="基于 Rayfish 虚拟网络的跨网络 Agent 通信 MVP" />
+        <TextBlock Classes="subtitle" Text="基于 Iroh QUIC 的跨网络 Agent 通信 MVP" />
       </StackPanel>
       <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="5">
         <TextBlock Text="连接状态" Foreground="#98A2B3" HorizontalAlignment="Right" />
@@ -62,50 +62,33 @@
         <StackPanel Spacing="16">
           <Border Classes="card">
             <StackPanel Spacing="12">
-              <TextBlock Classes="section" Text="本机与 Rayfish" />
-              <TextBlock Text="{Binding RayStatus}" Foreground="#A7F3D0" TextWrapping="Wrap" />
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <TextBox Text="内置 Rayfish" IsReadOnly="True" />
-                <Button Grid.Column="1" Classes="secondary" Content="检查服务" Command="{Binding CheckRayfishCommand}" />
-              </Grid>
-              <TextBlock Text="安装包已包含 Rayfish。点击下方启动按钮会自动启动 Rayfish 服务和虚拟网络。" Foreground="#A7F3D0" FontSize="12" TextWrapping="Wrap" />
+              <TextBlock Classes="section" Text="本机 Iroh 节点" />
+              <TextBlock Text="{Binding NodeStatus}" Foreground="#A7F3D0" TextWrapping="Wrap" />
               <TextBox Text="{Binding Settings.DisplayName}" PlaceholderText="本机名称" />
-              <TextBox Text="{Binding Settings.Port}" PlaceholderText="通信端口" />
-              <Button Classes="primary" Content="启动服务端模式" Command="{Binding StartServerCommand}" />
-              <TextBox Text="{Binding Settings.LocalAddress}" IsReadOnly="True" PlaceholderText="本机 Rayfish IPv6（启动后自动识别）" />
-              <TextBlock Text="服务端会监听 Rayfish 分配的 IPv6 地址。首次启动可能会弹出系统权限确认。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
-            </StackPanel>
-          </Border>
-
-          <Border Classes="card">
-            <StackPanel Spacing="12">
-              <TextBlock Classes="section" Text="Rayfish 网络配置" />
-              <TextBlock Text="首次使用只需一台电脑创建网络并生成邀请，另一台粘贴邀请代码加入。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
-              <TextBox Text="{Binding NetworkName}" PlaceholderText="网络名称，例如 team" />
+              <TextBox Text="{Binding Settings.LocalEndpointId}" IsReadOnly="True" PlaceholderText="本机 EndpointId" />
+              <TextBox Text="{Binding Settings.LocalEndpointAddress}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="启动后生成本机 EndpointAddr JSON" />
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <Button Classes="secondary" Content="创建网络" Command="{Binding CreateNetworkCommand}" />
-                <Button Grid.Column="1" Classes="secondary" Content="生成邀请" Command="{Binding InviteCommand}" />
+                <Button Classes="primary" Content="启动 Iroh 服务" Command="{Binding StartServerCommand}" />
+                <Button Grid.Column="1" Classes="secondary" Content="复制地址" Command="{Binding CopyEndpointCommand}" />
               </Grid>
-              <TextBox Text="{Binding InviteCode}" PlaceholderText="粘贴 Rayfish 邀请代码" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="58" />
-              <Button Classes="primary" Content="加入网络" Command="{Binding JoinNetworkCommand}" />
-              <TextBlock Text="{Binding NetworkStatus}" Foreground="#A7F3D0" TextWrapping="Wrap" />
+              <TextBlock Text="Iroh 使用 QUIC、UDP、NAT 穿透和 Relay，不需要虚拟网卡或固定端口。启动后把完整 EndpointAddr JSON 发给对方。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
 
           <Border Classes="card">
             <StackPanel Spacing="12">
-              <TextBlock Classes="section" Text="连接远程桌面端" />
-              <TextBox Text="{Binding Settings.RemoteAddress}" PlaceholderText="远程 Rayfish IPv6，例如 200:..." />
+              <TextBlock Classes="section" Text="连接远程节点" />
+              <TextBox Text="{Binding Settings.RemoteEndpointAddress}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" PlaceholderText="粘贴远程 Iroh EndpointAddr JSON" />
               <Button Classes="primary" Content="连接" Command="{Binding ConnectCommand}" />
               <Button Classes="secondary" Content="断开连接" Command="{Binding DisconnectCommand}" />
-              <TextBlock Text="两端安装同一个 RayLink 版本，并通过 Rayfish 加入同一个网络后，使用对方地址连接。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
+              <TextBlock Text="双方不要求处于同一局域网。Iroh 会优先尝试点对点 UDP，失败时通过 Relay 保持连接。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
 
           <Border Classes="card">
             <StackPanel Spacing="10">
               <TextBlock Classes="section" Text="运行日志" />
-              <TextBox Text="{Binding Log}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" />
+              <TextBox Text="{Binding Log}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="190" />
             </StackPanel>
           </Border>
         </StackPanel>
