@@ -1,138 +1,290 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="RayLink.App.MainWindow"
-        Width="1120" Height="760"
-        MinWidth="900" MinHeight="620"
-        Title="RayLink · Iroh Agent 通信"
-        Background="#0B1020">
+        Width="1180" Height="780"
+        MinWidth="980" MinHeight="650"
+        Title="RayLink"
+        Background="#F7F7F8"
+        FontFamily="Segoe UI">
   <Window.Styles>
-    <Style Selector="TextBlock.title">
-      <Setter Property="FontSize" Value="25" />
-      <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="#F5F7FF" />
-    </Style>
-    <Style Selector="TextBlock.subtitle">
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Foreground" Value="#98A2B3" />
-    </Style>
-    <Style Selector="Border.card">
-      <Setter Property="Background" Value="#141B31" />
-      <Setter Property="CornerRadius" Value="14" />
-      <Setter Property="Padding" Value="20" />
-    </Style>
-    <Style Selector="TextBlock.section">
-      <Setter Property="FontSize" Value="15" />
+    <Style Selector="TextBlock.app-brand">
+      <Setter Property="FontSize" Value="17" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#E8ECF8" />
+      <Setter Property="Foreground" Value="#242424" />
     </Style>
-    <Style Selector="Button.primary">
-      <Setter Property="Background" Value="#5966F2" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="16,10" />
+    <Style Selector="TextBlock.page-title">
+      <Setter Property="FontSize" Value="21" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#1F1F1F" />
     </Style>
-    <Style Selector="Button.secondary">
-      <Setter Property="Background" Value="#232D4D" />
-      <Setter Property="Foreground" Value="#DCE2F5" />
+    <Style Selector="TextBlock.caption">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="#6B6B6B" />
+    </Style>
+    <Style Selector="TextBlock.nav-label">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#3B3B3B" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.nav-icon">
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="Foreground" Value="#5F5F5F" />
+      <Setter Property="Width" Value="24" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.nav-item">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="Margin" Value="0,2" />
+    </Style>
+    <Style Selector="Border.nav-item:pointerover">
+      <Setter Property="Background" Value="#E6E6E7" />
+    </Style>
+    <Style Selector="Border.nav-item.selected">
+      <Setter Property="Background" Value="#E1E1E2" />
+    </Style>
+    <Style Selector="Border.surface">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#E4E4E7" />
+      <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="14,9" />
+    </Style>
+    <Style Selector="Border.subtle-surface">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#E8E8EA" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="7" />
+    </Style>
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#262626" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="#777777" />
+      <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
     <Style Selector="TextBox">
-      <Setter Property="Background" Value="#0E1528" />
-      <Setter Property="BorderBrush" Value="#2B375A" />
-      <Setter Property="Foreground" Value="#E8ECF8" />
-      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#D6D6D8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="#242424" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style Selector="TextBox:focus">
+      <Setter Property="BorderBrush" Value="#5B5FC7" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="13,8" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="BorderBrush" Value="#D4D4D6" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#5B5FC7" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#5B5FC7" />
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="#4F53B8" />
+    </Style>
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="Foreground" Value="#333333" />
+    </Style>
+    <Style Selector="Button.secondary:pointerover">
+      <Setter Property="Background" Value="#F1F1F2" />
+    </Style>
+    <Style Selector="Button.icon-button">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Foreground" Value="#6B6B6B" />
+    </Style>
+    <Style Selector="Button.icon-button:pointerover">
+      <Setter Property="Background" Value="#EBEBEC" />
+    </Style>
+    <Style Selector="Border.message">
+      <Setter Property="Background" Value="#F5F5F6" />
+      <Setter Property="BorderBrush" Value="#E7E7E9" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
   </Window.Styles>
 
-  <Grid RowDefinitions="Auto,*" Margin="28">
-    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-      <StackPanel Spacing="6">
-        <TextBlock Classes="title" Text="RayLink" />
-        <TextBlock Classes="subtitle" Text="基于 Iroh QUIC 的跨网络 Agent 通信 MVP" />
-      </StackPanel>
-      <StackPanel Grid.Column="1" HorizontalAlignment="Right" Spacing="5">
-        <TextBlock Text="连接状态" Foreground="#98A2B3" HorizontalAlignment="Right" />
-        <TextBlock Text="{Binding ConnectionStatus}" Foreground="#6EE7B7" FontWeight="SemiBold" HorizontalAlignment="Right" />
-      </StackPanel>
-    </Grid>
-
-    <Grid Grid.Row="1" ColumnDefinitions="350,*" ColumnSpacing="20">
-      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="16">
-          <Border Classes="card">
-            <StackPanel Spacing="12">
-              <TextBlock Classes="section" Text="本机 Iroh 节点" />
-              <TextBlock Text="{Binding NodeStatus}" Foreground="#A7F3D0" TextWrapping="Wrap" />
-              <TextBox Text="{Binding Settings.DisplayName}" PlaceholderText="本机名称" />
-              <TextBox Text="{Binding Settings.LocalEndpointId}" IsReadOnly="True" PlaceholderText="本机 EndpointId" />
-              <TextBox Text="{Binding Settings.LocalEndpointAddress}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" PlaceholderText="启动后生成本机 EndpointAddr JSON" />
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <Button Classes="primary" Content="启动 Iroh 服务" Command="{Binding StartServerCommand}" />
-                <Button Grid.Column="1" Classes="secondary" Content="复制地址" Command="{Binding CopyEndpointCommand}" />
-              </Grid>
-              <TextBlock Text="Iroh 使用 QUIC、UDP、NAT 穿透和 Relay，不需要虚拟网卡或固定端口。启动后把完整 EndpointAddr JSON 发给对方。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
-            </StackPanel>
-          </Border>
-
-          <Border Classes="card">
-            <StackPanel Spacing="12">
-              <TextBlock Classes="section" Text="连接远程节点" />
-              <TextBox Text="{Binding Settings.RemoteEndpointAddress}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110" PlaceholderText="粘贴远程 Iroh EndpointAddr JSON" />
-              <Button Classes="primary" Content="连接" Command="{Binding ConnectCommand}" />
-              <Button Classes="secondary" Content="断开连接" Command="{Binding DisconnectCommand}" />
-              <TextBlock Text="双方不要求处于同一局域网。Iroh 会优先尝试点对点 UDP，失败时通过 Relay 保持连接。" Foreground="#8792AC" FontSize="12" TextWrapping="Wrap" />
-            </StackPanel>
-          </Border>
-
-          <Border Classes="card">
-            <StackPanel Spacing="10">
-              <TextBlock Classes="section" Text="运行日志" />
-              <TextBox Text="{Binding Log}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="190" />
-            </StackPanel>
-          </Border>
+  <Grid RowDefinitions="48,*">
+    <!-- A compact toolbar in the spirit of a native Windows app. -->
+    <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#E5E5E7" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="240,*,Auto" Margin="14,0,16,0">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock Text="◈" FontSize="18" Foreground="#5B5FC7" VerticalAlignment="Center" />
+          <TextBlock Classes="app-brand" Text="RayLink" />
+          <TextBlock Text="⌄" FontSize="13" Foreground="#777777" VerticalAlignment="Center" />
         </StackPanel>
-      </ScrollViewer>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Button Classes="icon-button" Content="?" ToolTip.Tip="关于 RayLink" />
+          <Button Classes="icon-button" Content="⚙" ToolTip.Tip="设置" />
+        </StackPanel>
+      </Grid>
+    </Border>
 
-      <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="14">
-        <Border Classes="card">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
-            <Border Width="10" Height="10" CornerRadius="5" Background="#34D399" VerticalAlignment="Center" />
-            <StackPanel Grid.Column="1" Spacing="3">
-              <TextBlock Text="点对点消息" Foreground="#E8ECF8" FontSize="16" FontWeight="SemiBold" />
-              <TextBlock Text="可靠、有序的文本通信 · 20 秒业务心跳" Foreground="#8792AC" FontSize="12" />
+    <Grid Grid.Row="1" ColumnDefinitions="240,*">
+      <!-- Sidebar -->
+      <Border Grid.Column="0" Background="#F1F1F2" BorderBrush="#E1E1E3" BorderThickness="0,0,1,0">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="10,14,10,10">
+          <StackPanel Spacing="2">
+            <Border Classes="nav-item selected">
+              <Grid ColumnDefinitions="24,*" ColumnSpacing="8">
+                <TextBlock Classes="nav-icon" Text="⌂" />
+                <TextBlock Grid.Column="1" Classes="nav-label" Text="通信工作区" />
+              </Grid>
+            </Border>
+            <Border Classes="nav-item">
+              <Grid ColumnDefinitions="24,*" ColumnSpacing="8">
+                <TextBlock Classes="nav-icon" Text="◎" />
+                <TextBlock Grid.Column="1" Classes="nav-label" Text="远程节点" />
+              </Grid>
+            </Border>
+            <Border Classes="nav-item">
+              <Grid ColumnDefinitions="24,*" ColumnSpacing="8">
+                <TextBlock Classes="nav-icon" Text="▣" />
+                <TextBlock Grid.Column="1" Classes="nav-label" Text="消息记录" />
+              </Grid>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" Margin="7,28,7,0" Spacing="10">
+            <TextBlock Classes="caption" Text="当前节点" />
+            <Border Classes="subtle-surface" Padding="10">
+              <StackPanel Spacing="7">
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <Border Width="8" Height="8" CornerRadius="4" Background="#B8B8BA" VerticalAlignment="Center" />
+                  <TextBlock Text="本机 RayLink" FontSize="13" Foreground="#363636" />
+                </StackPanel>
+                <TextBlock Text="{Binding NodeStatus}" Classes="caption" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <TextBlock Classes="caption" Text="Iroh QUIC · Relay · NAT 穿透" TextWrapping="Wrap" />
+          </StackPanel>
+
+          <Border Grid.Row="2" Classes="nav-item">
+            <Grid ColumnDefinitions="24,*" ColumnSpacing="8">
+              <TextBlock Classes="nav-icon" Text="⚙" />
+              <TextBlock Grid.Column="1" Classes="nav-label" Text="应用设置" />
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+
+      <!-- Main content -->
+      <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="28,24,30,24">
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="page-title" Text="通信工作区" />
+            <TextBlock Classes="caption" Text="管理本机节点、连接远程 Agent，并进行双向消息测试" />
+          </StackPanel>
+          <Border Grid.Column="1" Background="#F3FBF7" BorderBrush="#C8EBD8" BorderThickness="1" CornerRadius="14" Padding="11,6" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Border Width="8" Height="8" CornerRadius="4" Background="#22A06B" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding ConnectionStatus}" FontSize="12" Foreground="#16794C" VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Grid.Column="2" Text="MVP" Foreground="#A5B4FC" FontWeight="Bold" VerticalAlignment="Center" />
-          </Grid>
-        </Border>
+          </Border>
+        </Grid>
 
-        <Border Grid.Row="1" Classes="card" Padding="14">
-          <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Messages}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Background="#1B2542" CornerRadius="8" Padding="12" Margin="0,0,0,9">
-                    <StackPanel Spacing="4">
-                      <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding Sender}" Foreground="#B8C2FF" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="{Binding Time}" Foreground="#7784A5" FontSize="11" />
-                      </Grid>
-                      <TextBlock Text="{Binding Text}" Foreground="#E8ECF8" TextWrapping="Wrap" />
-                    </StackPanel>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <Grid Grid.Row="1" ColumnDefinitions="330,*" ColumnSpacing="20">
+          <!-- Settings column -->
+          <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="14">
+              <Border Classes="surface" Padding="16">
+                <StackPanel Spacing="12">
+                  <StackPanel Spacing="3">
+                    <TextBlock Classes="section-title" Text="本机节点" />
+                    <TextBlock Classes="muted" Text="启动后即可接受远程连接。" />
+                  </StackPanel>
+                  <TextBox Text="{Binding Settings.DisplayName}" PlaceholderText="设备名称" />
+                  <StackPanel Spacing="5">
+                    <TextBlock Classes="caption" Text="Endpoint ID" />
+                    <TextBox Text="{Binding Settings.LocalEndpointId}" IsReadOnly="True" FontSize="11" />
+                  </StackPanel>
+                  <StackPanel Spacing="5">
+                    <TextBlock Classes="caption" Text="Endpoint 地址" />
+                    <TextBox Text="{Binding Settings.LocalEndpointAddress}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="82" FontSize="11" />
+                  </StackPanel>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Button Classes="primary" Content="启动服务" Command="{Binding StartServerCommand}" />
+                    <Button Grid.Column="1" Classes="secondary" Content="复制" Command="{Binding CopyEndpointCommand}" />
+                  </Grid>
+                  <TextBlock Classes="muted" Text="地址只包含节点公开信息，请勿分享本机 SecretKey。" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="surface" Padding="16">
+                <StackPanel Spacing="12">
+                  <StackPanel Spacing="3">
+                    <TextBlock Classes="section-title" Text="连接远程节点" />
+                    <TextBlock Classes="muted" Text="粘贴对方的 Endpoint 地址即可建立连接。" />
+                  </StackPanel>
+                  <TextBox Text="{Binding Settings.RemoteEndpointAddress}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="112" PlaceholderText="粘贴 EndpointAddr JSON" FontSize="11" />
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <Button Classes="primary" Content="连接" Command="{Binding ConnectCommand}" />
+                    <Button Grid.Column="1" Classes="secondary" Content="断开" Command="{Binding DisconnectCommand}" />
+                  </Grid>
+                  <TextBlock Classes="muted" Text="双方无需在同一局域网。Iroh 会自动尝试点对点连接，必要时使用 Relay。" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
           </ScrollViewer>
-        </Border>
 
-        <Border Grid.Row="2" Classes="card">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-            <TextBox Text="{Binding MessageDraft}" PlaceholderText="输入要发送给对端的消息…" AcceptsReturn="True" MinHeight="45" VerticalContentAlignment="Center" />
-            <Button Grid.Column="1" Classes="primary" Content="发送" Command="{Binding SendCommand}" VerticalAlignment="Center" />
+          <!-- Conversation column -->
+          <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="14">
+            <Border Classes="surface" Padding="16">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="section-title" Text="点对点消息" />
+                  <TextBlock Classes="muted" Text="通过 Iroh QUIC 可靠、有序地发送文本消息" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="MVP" FontSize="11" Foreground="#5B5FC7" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Classes="surface" Padding="16">
+              <Grid RowDefinitions="Auto,*">
+                <TextBlock Text="{Binding HasMessages, StringFormat='消息记录 ({0})'}" Classes="caption" Margin="0,0,0,12" />
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding Messages}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Classes="message">
+                          <StackPanel Spacing="5">
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock Text="{Binding Sender}" FontSize="12" FontWeight="SemiBold" Foreground="#5B5FC7" />
+                              <TextBlock Grid.Column="1" Text="{Binding Time}" Classes="caption" />
+                            </Grid>
+                            <TextBlock Text="{Binding Text}" FontSize="14" Foreground="#2C2C2C" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Classes="surface" Padding="10">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Text="{Binding MessageDraft}" PlaceholderText="输入消息，按发送提交…" AcceptsReturn="True" MinHeight="44" VerticalContentAlignment="Center" />
+                <Button Grid.Column="1" Classes="primary" Content="发送" Command="{Binding SendCommand}" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
           </Grid>
-        </Border>
+        </Grid>
       </Grid>
     </Grid>
   </Grid>
 </Window>
+
