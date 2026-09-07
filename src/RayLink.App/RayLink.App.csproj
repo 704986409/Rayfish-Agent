@@ -8,7 +8,7 @@
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <RuntimeIdentifiers>win-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <RootNamespace>RayLink.App</RootNamespace>
-    <AssemblyName>RayLink</AssemblyName>
+    <AssemblyName>AgentLink</AssemblyName>
     <Version>0.2.0</Version>
   </PropertyGroup>
 

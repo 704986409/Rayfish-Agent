@@ -3,7 +3,7 @@
         x:Class="RayLink.App.MainWindow"
         Width="1180" Height="780"
         MinWidth="980" MinHeight="650"
-        Title="RayLink"
+        Title="AgentLink"
         Background="#F3F3F3"
         FontFamily="Segoe UI, Microsoft YaHei UI, PingFang SC">
   <Window.Styles>
@@ -155,15 +155,40 @@
     <Style Selector="Border.status-dot.online">
       <Setter Property="Background" Value="#107C41" />
     </Style>
+    <!-- Thin rounded scrollbar thumbs; keep the native scrolling behavior. -->
+    <Style Selector="ScrollBar">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ScrollBar /template/ Thumb">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="#B5B5B5" CornerRadius="4" Margin="2" />
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="ScrollBar /template/ Thumb:pointerover /template/ Border">
+      <Setter Property="Background" Value="#858585" />
+    </Style>
+    <Style Selector="ScrollBar /template/ RepeatButton">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="Path.connect-spinner">
+      <Style.Animations>
+        <Animation Duration="0:0:1" IterationCount="Infinite">
+          <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
   </Window.Styles>
   <Grid RowDefinitions="48,*">
     <Border Grid.Row="0" Background="#FAFAFA" BorderBrush="#E5E5E5" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="Auto,*" Margin="24,0">
-        <TextBlock Classes="app-brand" Text="RayLink" VerticalAlignment="Center" />
+        <TextBlock Classes="app-brand" Text="AgentLink" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Classes="caption" Text="跨网络 · 点对点通信" HorizontalAlignment="Right" VerticalAlignment="Center" />
       </Grid>
     </Border>
-    <Grid Grid.Row="1" ColumnDefinitions="216,*">
+    <Grid Grid.Row="1" ColumnDefinitions="216,*" IsEnabled="{Binding !IsConnectionDialogOpen}">
       <Border Grid.Column="0" Background="#F3F3F3" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0" Padding="14,18,14,14">
         <Grid RowDefinitions="Auto,*,Auto">
           <StackPanel Spacing="2" HorizontalAlignment="Stretch">
@@ -174,10 +199,18 @@
               <TextBlock Classes="nav-label" Text="远程节点" />
             </Button>
             <Button Classes="nav-item" Classes.selected="{Binding IsMessagesPage}" Command="{Binding NavigateCommand}" CommandParameter="2">
-              <TextBlock Classes="nav-label" Text="消息发送" />
+              <Grid>
+                <TextBlock Classes="nav-label" Text="消息发送" />
+                <Border x:Name="UnreadDot" Width="7" Height="7" CornerRadius="4" Background="#D83B3B"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-3,-10,0"
+                        IsVisible="{Binding HasUnreadMessages}" />
+              </Grid>
             </Button>
             <Button Classes="nav-item" Classes.selected="{Binding IsStatusPage}" Command="{Binding NavigateCommand}" CommandParameter="3">
               <TextBlock Classes="nav-label" Text="节点状态" />
+            </Button>
+            <Button Classes="nav-item" Classes.selected="{Binding IsRolesPage}" Command="{Binding NavigateCommand}" CommandParameter="5">
+              <TextBlock Classes="nav-label" Text="角色设定" />
             </Button>
           </StackPanel>
           <Border Grid.Row="1" Margin="8,28,8,0" BorderBrush="#E5E5E5" BorderThickness="0,1,0,0" Padding="0,16,0,0">
@@ -192,11 +225,10 @@
                   <TextBlock Text="{Binding NodeStatus}" Classes="caption" TextWrapping="Wrap" />
                 </StackPanel>
               </Border>
-              <TextBlock Classes="caption" Text="Iroh · 加密通信" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
           <Button Grid.Row="2" Classes="nav-item" Classes.selected="{Binding IsSettingsPage}" Command="{Binding NavigateCommand}" CommandParameter="4">
-            <TextBlock Classes="nav-label" Text="应用设置" />
+            <TextBlock Text="⚙" FontSize="20" Foreground="#404040" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Button>
         </Grid>
       </Border>
@@ -261,9 +293,9 @@
                 <StackPanel Spacing="12">
                   <StackPanel Spacing="4">
                     <TextBlock Classes="section-title" Text="本机节点" />
-                    <TextBlock Classes="muted" Text="启动后即可接受远程连接。" />
+                    <TextBlock Classes="muted" Text="请先在通信工作区启动服务，启动后显示本机节点信息。" />
                   </StackPanel>
-                  <TextBox Text="{Binding Settings.DisplayName}" PlaceholderText="设备名称" />
+                  <TextBox Text="{Binding LocalNodeName, Mode=OneWay}" IsReadOnly="True" PlaceholderText="启动后显示设备名称" />
                   <StackPanel Spacing="5">
                     <TextBlock Classes="caption" Text="Endpoint ID" />
                     <TextBox Classes="code" Text="{Binding Settings.LocalEndpointId}" IsReadOnly="True" FontSize="11" />
@@ -272,10 +304,7 @@
                     <TextBlock Classes="caption" Text="Endpoint 地址" />
                     <TextBox Classes="code" Text="{Binding Settings.LocalEndpointAddress}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="82" FontSize="11" />
                   </StackPanel>
-                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <Button Classes="primary" Content="启动服务" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" />
-                    <Button Grid.Column="1" Classes="secondary" Content="复制" Command="{Binding CopyEndpointCommand}" />
-                  </Grid>
+                  <Button Classes="secondary" Content="复制" Command="{Binding CopyEndpointCommand}" IsEnabled="{Binding IsServerStarted}" HorizontalAlignment="Right" />
                   <TextBlock Classes="muted" Text="地址只包含节点公开信息，请勿分享本机 SecretKey。" />
                 </StackPanel>
               </Border>
@@ -287,7 +316,7 @@
                   </StackPanel>
                   <TextBox Classes="code" Text="{Binding Settings.RemoteEndpointAddress}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="112" PlaceholderText="粘贴 EndpointAddr JSON" FontSize="11" />
                   <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                    <Button Classes="primary" Content="连接" Command="{Binding ConnectCommand}" IsEnabled="{Binding !IsBusy}" />
+                    <Button Classes="primary" Content="建立连接" Command="{Binding ConnectCommand}" IsEnabled="{Binding CanConnect}" />
                     <Button Grid.Column="1" Classes="secondary" Content="断开" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
                   </Grid>
                   <TextBlock Classes="muted" Text="双方无需在同一局域网。Iroh 会自动尝试点对点连接，必要时使用 Relay。" />
@@ -298,7 +327,7 @@
           <!-- Message conversation -->
           <Grid Grid.Row="1" IsVisible="{Binding IsMessagesPage}" RowDefinitions="*,Auto" RowSpacing="14">
             <Border Classes="surface" Padding="22">
-              <Grid RowDefinitions="Auto,*">
+              <Grid RowDefinitions="Auto,*,Auto">
                 <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
                   <StackPanel Spacing="4">
                     <TextBlock Classes="section-title" Text="点对点消息" />
@@ -309,9 +338,9 @@
                 <StackPanel Grid.Row="1" IsVisible="{Binding !HasMessages}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
                   <TextBlock Text="开始一段对话" FontSize="20" FontWeight="SemiBold" Foreground="#404040" HorizontalAlignment="Center" />
                   <TextBlock Classes="muted" Text="连接远程节点后，即可在下方发送消息。" HorizontalAlignment="Center" />
-                  <Button Content="前往远程节点" Classes="secondary" Command="{Binding NavigateCommand}" CommandParameter="1" HorizontalAlignment="Center" Margin="0,8,0,0" />
+
                 </StackPanel>
-                <ScrollViewer Grid.Row="1" IsVisible="{Binding HasMessages}" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer x:Name="MessageScroll" Grid.Row="1" IsVisible="{Binding HasMessages}" VerticalScrollBarVisibility="Auto" ScrollChanged="OnMessageScrollChanged">
                   <ItemsControl ItemsSource="{Binding Messages}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
@@ -328,11 +357,14 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                 </ScrollViewer>
+                <Button x:Name="GoToRemoteButton" Grid.Row="2" Content="前往远程节点" IsVisible="{Binding !IsConnected}"
+                        Classes="secondary" Command="{Binding NavigateCommand}" CommandParameter="1"
+                        HorizontalAlignment="Center" Margin="0,8,0,0" />
               </Grid>
             </Border>
             <Border Grid.Row="1" Classes="surface" Padding="10">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <TextBox Text="{Binding MessageDraft}" PlaceholderText="输入消息…" AcceptsReturn="True" MinHeight="72" MaxHeight="160" VerticalContentAlignment="Center" />
+                <TextBox x:Name="MessageInput" Text="{Binding MessageDraft}" PlaceholderText="输入消息，Enter 发送，Shift+Enter 换行…" AcceptsReturn="True" MinHeight="72" MaxHeight="160" VerticalContentAlignment="Center" />
                 <Button Grid.Column="1" Classes="primary" Content="发送" Command="{Binding SendCommand}" IsEnabled="{Binding CanSend}" VerticalAlignment="Center" />
               </Grid>
             </Border>
@@ -360,6 +392,36 @@
               </Border>
             </StackPanel>
           </ScrollViewer>
+          <!-- Agent roles -->
+          <ScrollViewer Grid.Row="1" IsVisible="{Binding IsRolesPage}" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="14">
+              <Border Classes="surface" Padding="22">
+                <StackPanel Spacing="14">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="4"><TextBlock Classes="section-title" Text="角色设定"/><TextBlock Classes="muted" Text="每个 Agent 实例对应一个独立聊天框，右键可以编辑资料。"/></StackPanel>
+                    <Button Grid.Column="1" Classes="secondary" Content="刷新" Command="{Binding RefreshAgentsCommand}"/>
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding Agents}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                      <Border Classes="subtle-surface" Width="270" Margin="0,0,12,12" Padding="14">
+                        <Border.ContextMenu>
+                          <ContextMenu>
+                            <MenuItem Header="进入聊天" Click="OnAgentChatMenuClick"/>
+                            <MenuItem Header="设置信息" Click="OnAgentSettingsMenuClick"/>
+                          </ContextMenu>
+                        </Border.ContextMenu>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                          <Border Width="48" Height="48" CornerRadius="24" Background="#DDEBFF"><TextBlock Text="✦" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#0F6CBD"/></Border>
+                          <StackPanel Grid.Column="1" Spacing="3"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="{Binding Provider}" Classes="caption"/><TextBlock Text="{Binding Role}" Classes="muted"/><TextBlock Text="{Binding Status}" Classes="caption"/></StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate></ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
           <!-- Application settings -->
           <ScrollViewer Grid.Row="1" IsVisible="{Binding IsSettingsPage}" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="14">
@@ -374,8 +436,8 @@
               </Border>
               <Border Classes="surface" Padding="22">
                 <StackPanel Spacing="8">
-                  <TextBlock Classes="section-title" Text="关于 RayLink" />
-                  <TextBlock Classes="muted" Text="RayLink 使用 Iroh QUIC、Relay 与 NAT 穿透能力实现跨网络节点通信。" />
+                  <TextBlock Classes="section-title" Text="关于 AgentLink" />
+                  <TextBlock Classes="muted" Text="AgentLink 使用 Iroh QUIC、Relay 与 NAT 穿透能力实现跨网络节点通信。" />
                   <TextBlock Classes="caption" Text="当前版本 0.2.0 · Windows 原生风格界面" />
                 </StackPanel>
               </Border>
@@ -384,5 +446,38 @@
         </Grid>
       </Border>
     </Grid>
+    <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsAgentChatOpen}">
+      <Border Classes="surface" Width="560" Height="520" Padding="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+          <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="2"><TextBlock Classes="section-title" Text="Agent 聊天"/><TextBlock Classes="muted" Text="{Binding SelectedAgent.Name}"/></StackPanel><Button Grid.Column="1" Content="关闭" Classes="secondary" Command="{Binding CloseAgentChatCommand}"/></Grid>
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"><ItemsControl ItemsSource="{Binding AgentChatMessages}"><ItemsControl.ItemTemplate><DataTemplate><Border Classes="message" Classes.local="{Binding IsLocal}" Margin="0,0,0,8"><StackPanel Spacing="3"><TextBlock Text="{Binding Sender}" Classes="caption"/><TextBlock Text="{Binding Text}" TextWrapping="Wrap"/><TextBlock Text="{Binding Time}" Classes="caption"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox Text="{Binding AgentChatDraft}" PlaceholderText="输入消息"/><Button Grid.Column="1" Content="发送" Classes="primary" Command="{Binding SendAgentChatCommand}" IsEnabled="{Binding CanSendAgentChat}"/></Grid>
+        </Grid>
+      </Border>
+    </Border>
+    <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsProfileDialogOpen}">
+      <Border Classes="surface" Width="460" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="12"><TextBlock Classes="section-title" Text="编辑 Agent 资料"/><TextBlock Classes="caption" Text="默认头像（6 个）"/>
+          <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="✦" Classes="secondary" CommandParameter="0"/><Button Content="●" Classes="secondary" CommandParameter="1"/><Button Content="◆" Classes="secondary" CommandParameter="2"/><Button Content="●" Classes="secondary" CommandParameter="3"/><Button Content="✚" Classes="secondary" CommandParameter="4"/><Button Content="✿" Classes="secondary" CommandParameter="5"/></StackPanel>
+          <TextBox Text="{Binding ProfileName}" PlaceholderText="名字"/><TextBox Text="{Binding ProfileRole}" PlaceholderText="职位"/><TextBox Text="{Binding ProfileDescription}" PlaceholderText="职位详细信息" AcceptsReturn="True" MinHeight="80"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Content="取消" Classes="secondary" Command="{Binding CloseProfileDialogCommand}"/><Button Content="保存" Classes="primary" Command="{Binding SaveAgentProfileCommand}"/></StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
+    <!-- Modal overlay blocks duplicate actions until the real connection result arrives. -->
+    <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsConnectionDialogOpen}">
+      <Border Classes="surface" Width="360" Padding="32" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel Spacing="20" HorizontalAlignment="Stretch">
+          <Path Classes="connect-spinner" Width="32" Height="32" Stretch="Uniform" HorizontalAlignment="Center"
+                IsVisible="{Binding IsConnecting}" Stroke="#0F6CBD" StrokeThickness="3" StrokeLineCap="Round"
+                Data="M 16,2 A 14,14 0 1 1 2,16" RenderTransformOrigin="50%,50%">
+            <Path.RenderTransform><RotateTransform /></Path.RenderTransform>
+          </Path>
+          <TextBlock Text="{Binding ConnectionPrompt}" FontSize="16" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Stretch" />
+          <Button Content="确定" Classes="secondary" IsVisible="{Binding !IsConnecting}"
+                  Command="{Binding CloseConnectionDialogCommand}" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Border>
+    </Border>
   </Grid>
 </Window>

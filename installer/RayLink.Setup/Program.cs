@@ -7,7 +7,7 @@ namespace RayLink.Setup;
 
 internal static class Program
 {
-    private const string ProductName = "RayLink";
+    private const string ProductName = "AgentLink";
     private const string ProductVersion = "0.2.0";
     private static readonly string InstallDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), ProductName);
@@ -32,7 +32,7 @@ internal static class Program
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"RayLink 安装失败：{Environment.NewLine}{ex.Message}",
+                $"AgentLink 安装失败：{Environment.NewLine}{ex.Message}",
                 ProductName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
@@ -42,14 +42,14 @@ internal static class Program
 
     private static void Install()
     {
-        using var progress = new SetupProgressForm("正在安装 RayLink…");
+        using var progress = new SetupProgressForm("正在安装 AgentLink…");
         progress.Show();
         progress.SetStatus("准备安装文件…");
 
         Directory.CreateDirectory(InstallDirectory);
-        var appPath = Path.Combine(InstallDirectory, "RayLink.exe");
-        ExtractResource("payload\\RayLink.exe", appPath);
-        var setupPath = Path.Combine(InstallDirectory, "RayLink.Setup.exe");
+        var appPath = Path.Combine(InstallDirectory, "AgentLink.exe");
+        ExtractResource("payload\\AgentLink.exe", appPath);
+        var setupPath = Path.Combine(InstallDirectory, "AgentLink.Setup.exe");
         var currentSetup = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(currentSetup) || !File.Exists(currentSetup))
         {
@@ -60,17 +60,17 @@ internal static class Program
             File.Copy(currentSetup, setupPath, true);
         }
 
-        var transportPath = Path.Combine(InstallDirectory, "RayLink.Transport.exe");
-        ExtractResource("payload\\RayLink.Transport.exe", transportPath);
+        var transportPath = Path.Combine(InstallDirectory, "AgentLink.Transport.exe");
+        ExtractResource("payload\\AgentLink.Transport.exe", transportPath);
 
         progress.SetStatus("正在创建快捷方式…");
-        CreateShortcut(appPath, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "RayLink.lnk"));
+        CreateShortcut(appPath, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "AgentLink.lnk"));
         var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), ProductName);
         Directory.CreateDirectory(startMenu);
-        CreateShortcut(appPath, Path.Combine(startMenu, "RayLink.lnk"));
+        CreateShortcut(appPath, Path.Combine(startMenu, "AgentLink.lnk"));
 
         using var key = Registry.LocalMachine.CreateSubKey(
-            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\RayLink");
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\AgentLink");
         key?.SetValue("DisplayName", ProductName);
         key?.SetValue("DisplayVersion", ProductVersion);
         key?.SetValue("Publisher", ProductName);
@@ -78,11 +78,11 @@ internal static class Program
         key?.SetValue("DisplayIcon", appPath);
         key?.SetValue("UninstallString", $"\"{setupPath}\" /uninstall");
 
-        progress.SetStatus("安装完成，正在启动 RayLink…");
+        progress.SetStatus("安装完成，正在启动 AgentLink…");
         Process.Start(new ProcessStartInfo(appPath) { UseShellExecute = true });
         progress.Close();
         MessageBox.Show(
-            "RayLink 已安装。内置 Iroh 通信组件已部署。\n\n以后直接打开 RayLink，点击“启动 Iroh 服务”即可。",
+            "AgentLink 已安装。内置 Iroh 通信组件已部署。\n\n以后直接打开 AgentLink，点击“启动 Iroh 服务”即可。",
             ProductName,
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
@@ -90,16 +90,16 @@ internal static class Program
 
     private static void Uninstall()
     {
-        var answer = MessageBox.Show("确定要卸载 RayLink 和内置 Iroh 通信组件吗？", ProductName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        var answer = MessageBox.Show("确定要卸载 AgentLink 和内置 Iroh 通信组件吗？", ProductName, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
         if (answer != DialogResult.Yes) return;
-        DeleteShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "RayLink.lnk"));
-        DeleteShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), ProductName, "RayLink.lnk"));
+        DeleteShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "AgentLink.lnk"));
+        DeleteShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), ProductName, "AgentLink.lnk"));
         try { Directory.Delete(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), ProductName), true); } catch { }
-        try { Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\RayLink", false); } catch { }
-        var cleanup = Path.Combine(Path.GetTempPath(), $"RayLink-uninstall-{Guid.NewGuid():N}.cmd");
+        try { Registry.LocalMachine.DeleteSubKeyTree(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\AgentLink", false); } catch { }
+        var cleanup = Path.Combine(Path.GetTempPath(), $"AgentLink-uninstall-{Guid.NewGuid():N}.cmd");
         File.WriteAllText(cleanup, $"@echo off\r\ntimeout /t 2 /nobreak >nul\r\nrmdir /s /q \"{InstallDirectory}\"\r\ndel %~f0\r\n");
         Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{cleanup}\"") { UseShellExecute = false, CreateNoWindow = true });
-        MessageBox.Show("RayLink 卸载已开始。", ProductName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show("AgentLink 卸载已开始。", ProductName, MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private static void ExtractResource(string resourceName, string destination)
@@ -147,7 +147,7 @@ internal static class Program
         dynamic shortcut = shell.CreateShortcut(shortcutPath);
         shortcut.TargetPath = target;
         shortcut.WorkingDirectory = InstallDirectory;
-        shortcut.Description = "RayLink Agent 通信";
+        shortcut.Description = "AgentLink Agent 通信";
         shortcut.IconLocation = $"{target},0";
         shortcut.Save();
     }

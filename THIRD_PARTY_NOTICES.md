@@ -9,7 +9,7 @@
 - License: MIT OR Apache-2.0
 - License copies: third-party/iroh/LICENSE-MIT and third-party/iroh/LICENSE-APACHE
 
-RayLink uses the Iroh Rust library through native/iroh-transport. The native bridge is distributed as part of the RayLink application and is not a separate system service.
+AgentLink uses the Iroh Rust library through native/iroh-transport. The native bridge is distributed as part of the AgentLink application and is not a separate system service.
 
 ## Rust dependencies
 

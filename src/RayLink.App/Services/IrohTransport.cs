@@ -32,6 +32,7 @@ public sealed class IrohTransport : IAsyncDisposable
     private CancellationTokenSource? _cts;
     private TaskCompletionSource<IrohReadyEventArgs>? _readySource;
     private bool _stopping;
+    private TaskCompletionSource<bool>? _connectSource;
 
     public event EventHandler<PeerMessageEventArgs>? MessageReceived;
     public event EventHandler<string>? StatusChanged;
@@ -100,9 +101,24 @@ public sealed class IrohTransport : IAsyncDisposable
             if (address.ValueKind != JsonValueKind.Object || !address.TryGetProperty("id", out _)) throw new JsonException("缺少 id 字段");
         }
         catch (JsonException ex) { throw new InvalidOperationException($"远程 Iroh 地址格式不正确：{ex.Message}", ex); }
-        await StartAsync(cancellationToken);
-        StatusChanged?.Invoke(this, "正在通过 Iroh 连接远程节点…");
-        await SendCommandAsync(new { type = "connect", endpoint_addr = address }, cancellationToken);
+        if (!IsRunning) throw new InvalidOperationException("请先在通信工作区启动服务。");
+        if (IsConnected) return;
+        var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (Interlocked.CompareExchange(ref _connectSource, pending, null) is not null)
+            throw new InvalidOperationException("正在连接，请勿重复操作。");
+        try
+        {
+            StatusChanged?.Invoke(this, "正在通过 Iroh 连接远程节点…");
+            await SendCommandAsync(new { type = "connect", endpoint_addr = address }, cancellationToken);
+            await pending.Task.WaitAsync(TimeSpan.FromSeconds(40), cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            // Stop a nonresponsive bridge so a late result cannot connect after timeout.
+            await StopProcessAsync();
+            throw new TimeoutException("连接超时，请在通信工作区重新启动服务后重试。");
+        }
+        finally { Interlocked.CompareExchange(ref _connectSource, null, pending); }
     }
 
     public async Task SendTextAsync(string text, CancellationToken cancellationToken = default)
@@ -156,6 +172,7 @@ public sealed class IrohTransport : IAsyncDisposable
                     StatusChanged?.Invoke(this, "Iroh 节点已上线，支持 NAT 穿透和 Relay 回退。"); break;
                 case "connected":
                     IsConnected = true;
+                    _connectSource?.TrySetResult(true);
                     var remoteId = root.TryGetProperty("remote_id", out var remoteNode) ? remoteNode.GetString() : null;
                     StatusChanged?.Invoke(this, string.IsNullOrWhiteSpace(remoteId) ? message : $"{message} 远程 ID：{remoteId}"); break;
                 case "disconnected": IsConnected = false; StatusChanged?.Invoke(this, string.IsNullOrWhiteSpace(message) ? "Iroh 连接已断开。" : message); break;
@@ -165,6 +182,9 @@ public sealed class IrohTransport : IAsyncDisposable
                     var id = root.TryGetProperty("message_id", out var idNode) ? idNode.GetString() ?? Guid.NewGuid().ToString("N") : Guid.NewGuid().ToString("N");
                     var timestamp = root.TryGetProperty("timestamp", out var timestampNode) && DateTimeOffset.TryParse(timestampNode.GetString(), out var parsed) ? parsed : DateTimeOffset.UtcNow;
                     MessageReceived?.Invoke(this, new PeerMessageEventArgs(new PeerMessage("chat", sender, text, id, timestamp))); break;
+                case "connect_failed":
+                    _connectSource?.TrySetException(new InvalidOperationException(message));
+                    StatusChanged?.Invoke(this, message); break;
                 case "error": StatusChanged?.Invoke(this, string.IsNullOrWhiteSpace(message) ? "Iroh 通信组件发生错误。" : message); break;
                 case "status": StatusChanged?.Invoke(this, message); break;
             }
@@ -175,6 +195,7 @@ public sealed class IrohTransport : IAsyncDisposable
     private void OnProcessExited(object? sender, EventArgs e)
     {
         IsConnected = false;
+        _connectSource?.TrySetException(new InvalidOperationException("Iroh 通信组件已退出。"));
         var exitCode = _process?.ExitCode;
         _readySource?.TrySetException(new InvalidOperationException($"Iroh 通信组件提前退出（退出码 {exitCode}）。"));
         if (!_stopping) StatusChanged?.Invoke(this, $"Iroh 通信组件已退出（退出码 {exitCode}）。");
@@ -183,6 +204,7 @@ public sealed class IrohTransport : IAsyncDisposable
     private async Task StopProcessAsync()
     {
         _stopping = true;
+        _connectSource?.TrySetException(new InvalidOperationException("连接已取消，通信服务已停止。"));
         var process = _process;
         if (process is null) return;
         try
@@ -205,7 +227,7 @@ public sealed class IrohTransport : IAsyncDisposable
 
     private static string ResolveExecutable(string? configuredPath)
     {
-        var fileName = OperatingSystem.IsWindows() ? "RayLink.Transport.exe" : "RayLink.Transport";
+        var fileName = OperatingSystem.IsWindows() ? "AgentLink.Transport.exe" : "AgentLink.Transport";
         var candidates = new List<string>();
         if (!string.IsNullOrWhiteSpace(configuredPath)) candidates.Add(configuredPath);
         candidates.Add(Path.Combine(AppContext.BaseDirectory, fileName));

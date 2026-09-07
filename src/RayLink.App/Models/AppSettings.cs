@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -7,13 +8,16 @@ namespace RayLink.App.Models;
 public sealed class AppSettings : INotifyPropertyChanged
 {
     public string TransportExecutable { get; set; } = "";
+    public List<StoredAgentProfile> AgentProfiles { get; set; } = [];
     private string _displayName = Environment.MachineName;
     private string _localEndpointId = "";
     private string _localEndpointAddress = "";
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public string DisplayName { get => _displayName; set => Set(ref _displayName, value); }
+    [JsonIgnore]
     public string LocalEndpointId { get => _localEndpointId; set => Set(ref _localEndpointId, value); }
+    [JsonIgnore]
     public string LocalEndpointAddress { get => _localEndpointAddress; set => Set(ref _localEndpointAddress, value); }
 
     private void Set(ref string field, string value, [CallerMemberName] string? name = null)
@@ -22,6 +26,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
+    [JsonIgnore]
     public string RemoteEndpointAddress { get; set; } = "";
 
     public static string SettingsPath => Path.Combine(

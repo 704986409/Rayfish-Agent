@@ -123,8 +123,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 let current = current_connection.clone();
                 let display_name = args.display_name.clone();
                 tokio::spawn(async move {
-                    match endpoint.connect(endpoint_addr, ALPN).await {
-                        Ok(connection) => {
+                    match tokio::time::timeout(Duration::from_secs(30), endpoint.connect(endpoint_addr, ALPN)).await {
+                        Ok(Ok(connection)) => {
                             let connection = Arc::new(connection);
                             let remote_id = connection.remote_id();
                             replace_connection(&current, connection.clone()).await;
@@ -139,10 +139,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                             .await;
                             spawn_receive_loop(connection, output, current, display_name).await;
                         }
-                        Err(err) => {
+                        result => {
+                            let message = match result {
+                                Ok(Err(err)) => format!("Iroh 连接失败：{err}"),
+                                Err(_) => "连接超时，请确认对方服务已启动及地址正确。".to_string(),
+                                _ => unreachable!(),
+                            };
                             let _ = emit(
                                 &output,
-                                json!({ "type": "error", "message": format!("Iroh 连接失败：{err}") }),
+                                json!({ "type": "connect_failed", "message": message }),
                             )
                             .await;
                         }
@@ -325,7 +330,8 @@ async fn spawn_receive_loop(
             let (_send, mut recv) = match connection.accept_bi().await {
                 Ok(streams) => streams,
                 Err(err) => {
-                    clear_if_current(&current, &connection).await;
+                    // An old connection closing must not mark its replacement disconnected.
+                    if !clear_if_current(&current, &connection).await { break; }
                     let _ = emit(
                         &output,
                         json!({ "type": "disconnected", "message": format!("Iroh 连接已关闭：{err}") }),
@@ -424,10 +430,13 @@ async fn replace_connection(
 async fn clear_if_current(
     current: &Arc<Mutex<Option<SharedConnection>>>,
     connection: &SharedConnection,
-) {
+) -> bool {
     let mut guard = current.lock().await;
     if guard.as_ref().is_some_and(|current| Arc::ptr_eq(current, connection)) {
         *guard = None;
+        true
+    } else {
+        false
     }
 }
 

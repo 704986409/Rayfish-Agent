@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <AssemblyName>RayLink.Setup</AssemblyName>
+    <AssemblyName>AgentLink.Setup</AssemblyName>
     <RootNamespace>RayLink.Setup</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PublishSingleFile>true</PublishSingleFile>
@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\..\artifacts\win-x64-single\RayLink.exe" LogicalName="payload\RayLink.exe" />
-    <EmbeddedResource Include="..\..\native\iroh-transport\target\x86_64-pc-windows-msvc\release\raylink-iroh-transport.exe" LogicalName="payload\RayLink.Transport.exe" />
+    <EmbeddedResource Include="..\..\artifacts\win-x64-single\AgentLink.exe" LogicalName="payload\AgentLink.exe" />
+    <EmbeddedResource Include="..\..\native\iroh-transport\target\x86_64-pc-windows-msvc\release\raylink-iroh-transport.exe" LogicalName="payload\AgentLink.Transport.exe" />
   </ItemGroup>
 </Project>

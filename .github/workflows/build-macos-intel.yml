@@ -27,10 +27,10 @@ jobs:
       - name: Upload test packages
         uses: actions/upload-artifact@v4
         with:
-          name: RayLink-macOS-Intel
+          name: AgentLink-macOS-Intel
           path: |
-            artifacts/macos-intel.*/RayLink-macOS-Intel.dmg
-            artifacts/macos-intel.*/RayLink-macOS-Intel.app.zip
+            artifacts/macos-intel.*/AgentLink-macOS-Intel.dmg
+            artifacts/macos-intel.*/AgentLink-macOS-Intel.app.zip
             artifacts/macos-intel.*/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
