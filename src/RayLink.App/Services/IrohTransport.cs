@@ -60,7 +60,7 @@ public sealed class IrohTransport : IAsyncDisposable
                 FileName = executable, UseShellExecute = false,
                 RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
                 CreateNoWindow = true, WorkingDirectory = AppContext.BaseDirectory,
-                StandardInputEncoding = Encoding.UTF8, StandardOutputEncoding = Encoding.UTF8,
+                StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
             startInfo.ArgumentList.Add("--identity-key");
