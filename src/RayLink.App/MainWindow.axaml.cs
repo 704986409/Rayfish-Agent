@@ -15,10 +15,17 @@ public partial class MainWindow : Window
 {
     private bool _closing;
     private bool _disposed;
+    private readonly DispatcherTimer _chatScrollbarTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     public MainWindow()
     {
         InitializeComponent();
+        _chatScrollbarTimer.Tick += (_, _) =>
+        {
+            _chatScrollbarTimer.Stop();
+            this.FindControl<ScrollViewer>("MessageScroll")?.SetCurrentValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+            this.FindControl<ScrollViewer>("AgentChatScroll")?.SetCurrentValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Hidden);
+        };
         DataContext = new MainViewModel(async text =>
         {
             var clipboard = Clipboard ?? throw new InvalidOperationException("当前无法访问剪贴板。");
@@ -79,6 +86,14 @@ public partial class MainWindow : Window
     private void OnMessageScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
         if (e.ExtentDelta.Y != 0 || e.ViewportDelta.Y != 0) QueueScrollToLatest();
+    }
+
+    private void OnChatScrollInteraction(object? sender, PointerWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer viewer) return;
+        viewer.SetCurrentValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
+        _chatScrollbarTimer.Stop();
+        _chatScrollbarTimer.Start();
     }
 
     private bool _scrollQueued;

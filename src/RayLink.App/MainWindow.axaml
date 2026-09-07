@@ -281,7 +281,7 @@
                     <TextBlock Classes="section-title" Text="快速开始" />
                     <TextBlock Classes="muted" Text="先启动本机 Iroh 服务，再在远程节点页粘贴对方地址。" />
                   </StackPanel>
-                  <Button Grid.Column="1" Classes="primary" Content="启动服务" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Classes="primary" Content="{Binding StartServerText}" Command="{Binding StartServerCommand}" IsEnabled="{Binding CanStartServer}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
             </StackPanel>
@@ -320,6 +320,17 @@
                     <Button Grid.Column="1" Classes="secondary" Content="断开" Command="{Binding DisconnectCommand}" IsEnabled="{Binding IsConnected}" />
                   </Grid>
                   <TextBlock Classes="muted" Text="双方无需在同一局域网。Iroh 会自动尝试点对点连接，必要时使用 Relay。" />
+                  <Border Classes="subtle-surface" Padding="12" IsVisible="{Binding HasPendingTrust}">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="确认远程节点信任" FontWeight="SemiBold" />
+                      <TextBlock Classes="code" Text="{Binding PendingTrustNode}" TextWrapping="Wrap" FontSize="11" />
+                      <TextBlock Classes="muted" Text="信任后才会同步对方明确共享的 Agent；对方也必须独立信任本机。" TextWrapping="Wrap" />
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="primary" Content="信任并同步" Command="{Binding TrustNodeCommand}" />
+                        <Button Classes="secondary" Content="拒绝" Command="{Binding RejectNodeCommand}" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -340,7 +351,7 @@
                   <TextBlock Classes="muted" Text="连接远程节点后，即可在下方发送消息。" HorizontalAlignment="Center" />
 
                 </StackPanel>
-                <ScrollViewer x:Name="MessageScroll" Grid.Row="1" IsVisible="{Binding HasMessages}" VerticalScrollBarVisibility="Auto" ScrollChanged="OnMessageScrollChanged">
+                <ScrollViewer x:Name="MessageScroll" Grid.Row="1" IsVisible="{Binding HasMessages}" VerticalScrollBarVisibility="Hidden" ScrollChanged="OnMessageScrollChanged" PointerWheelChanged="OnChatScrollInteraction">
                   <ItemsControl ItemsSource="{Binding Messages}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
@@ -413,11 +424,13 @@
                         </Border.ContextMenu>
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                           <Border Width="48" Height="48" CornerRadius="24" Background="#DDEBFF"><TextBlock Text="✦" FontSize="25" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#0F6CBD"/></Border>
-                          <StackPanel Grid.Column="1" Spacing="3"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="{Binding Provider}" Classes="caption"/><TextBlock Text="{Binding Role}" Classes="muted"/><TextBlock Text="{Binding Status}" Classes="caption"/></StackPanel>
+                          <StackPanel Grid.Column="1" Spacing="3" Margin="0,0,58,0"><TextBlock Text="{Binding Name}" FontWeight="SemiBold"/><TextBlock Text="{Binding Provider}" Classes="caption"/><TextBlock Text="{Binding Role}" Classes="muted"/><TextBlock Text="{Binding Status}" Classes="caption"/></StackPanel>
+                          <Button Grid.Column="1" Classes="secondary" Content="激活" Command="{Binding DataContext.ActivateCodexCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalAlignment="Right" VerticalAlignment="Top" IsVisible="{Binding IsCodex}" />
                         </Grid>
                       </Border>
                     </DataTemplate></ItemsControl.ItemTemplate>
                   </ItemsControl>
+                  <TextBlock Classes="muted" IsVisible="{Binding !HasAgents}" Text="未发现运行中的 Agent。请确认 Codex 已启动，或在设置中一键接入 Codex MCP。" />
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -435,6 +448,9 @@
                 </StackPanel>
               </Border>
               <Border Classes="surface" Padding="22">
+                <StackPanel Spacing="10"><TextBlock Classes="section-title" Text="Codex MCP 接入"/><TextBlock Classes="muted" Text="一键写入本机 Codex 配置。优点是新会话自动拥有 AgentLink 工具；代价是每个新会话会启动本地 MCP 进程，现有会话需要重开。"/><Button Classes="secondary" Content="一键接入 Codex MCP" Command="{Binding EnableCodexMcpCommand}" HorizontalAlignment="Left"/></StackPanel>
+              </Border>
+              <Border Classes="surface" Padding="22">
                 <StackPanel Spacing="8">
                   <TextBlock Classes="section-title" Text="关于 AgentLink" />
                   <TextBlock Classes="muted" Text="AgentLink 使用 Iroh QUIC、Relay 与 NAT 穿透能力实现跨网络节点通信。" />
@@ -450,7 +466,7 @@
       <Border Classes="surface" Width="560" Height="520" Padding="22" HorizontalAlignment="Center" VerticalAlignment="Center">
         <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
           <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="2"><TextBlock Classes="section-title" Text="Agent 聊天"/><TextBlock Classes="muted" Text="{Binding SelectedAgent.Name}"/></StackPanel><Button Grid.Column="1" Content="关闭" Classes="secondary" Command="{Binding CloseAgentChatCommand}"/></Grid>
-          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"><ItemsControl ItemsSource="{Binding AgentChatMessages}"><ItemsControl.ItemTemplate><DataTemplate><Border Classes="message" Classes.local="{Binding IsLocal}" Margin="0,0,0,8"><StackPanel Spacing="3"><TextBlock Text="{Binding Sender}" Classes="caption"/><TextBlock Text="{Binding Text}" TextWrapping="Wrap"/><TextBlock Text="{Binding Time}" Classes="caption"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+          <ScrollViewer x:Name="AgentChatScroll" Grid.Row="1" VerticalScrollBarVisibility="Hidden" PointerWheelChanged="OnChatScrollInteraction"><ItemsControl ItemsSource="{Binding AgentChatMessages}"><ItemsControl.ItemTemplate><DataTemplate><Border Classes="message" Classes.local="{Binding IsLocal}" Margin="0,0,0,8"><StackPanel Spacing="3"><TextBlock Text="{Binding Sender}" Classes="caption"/><TextBlock Text="{Binding Text}" TextWrapping="Wrap"/><TextBlock Text="{Binding Time}" Classes="caption"/></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
           <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox Text="{Binding AgentChatDraft}" PlaceholderText="输入消息"/><Button Grid.Column="1" Content="发送" Classes="primary" Command="{Binding SendAgentChatCommand}" IsEnabled="{Binding CanSendAgentChat}"/></Grid>
         </Grid>
       </Border>
@@ -463,6 +479,12 @@
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Content="取消" Classes="secondary" Command="{Binding CloseProfileDialogCommand}"/><Button Content="保存" Classes="primary" Command="{Binding SaveAgentProfileCommand}"/></StackPanel>
         </StackPanel>
       </Border>
+    </Border>
+    <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsAgentIntegrationPromptOpen}">
+      <Border Classes="surface" Width="500" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel Spacing="14"><TextBlock Classes="section-title" Text="接入 Codex Agent？"/><TextBlock Classes="muted" Text="是否自动将 AgentLink MCP 写入本机 Codex 配置？接入后新的 Codex 会话可注册为 Agent，并会额外启动一个本地 MCP 进程。"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="secondary" Content="暂不接入" Command="{Binding DeclineCodexMcpCommand}"/><Button Classes="primary" Content="一键接入" Command="{Binding EnableCodexMcpCommand}"/></StackPanel></StackPanel></Border>
+    </Border>
+    <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsActivationPromptOpen}">
+      <Border Classes="surface" Width="500" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel Spacing="14"><TextBlock Classes="section-title" Text="激活 Codex？"/><TextBlock Classes="muted" Text="激活会关闭当前 Codex 对话窗口和正在运行的 Codex 程序，然后重新启动 Codex 并创建一个新的 AgentLink 激活任务。未保存的交互可能丢失。"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="secondary" Content="取消" Command="{Binding CancelActivationCommand}"/><Button Classes="primary" Content="确认激活" Command="{Binding ConfirmActivationCommand}"/></StackPanel></StackPanel></Border>
     </Border>
     <!-- Modal overlay blocks duplicate actions until the real connection result arrives. -->
     <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsConnectionDialogOpen}">

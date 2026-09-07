@@ -9,6 +9,7 @@ public sealed class AppSettings : INotifyPropertyChanged
 {
     public string TransportExecutable { get; set; } = "";
     public List<StoredAgentProfile> AgentProfiles { get; set; } = [];
+    public bool AgentIntegrationPromptHandled { get; set; }
     private string _displayName = Environment.MachineName;
     private string _localEndpointId = "";
     private string _localEndpointAddress = "";

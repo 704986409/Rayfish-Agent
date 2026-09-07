@@ -10,6 +10,7 @@ namespace RayLink.App;
 public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
 {
     private IrohTransport? _transport;
+    private AgentLinkSyncService? _sync;
     private readonly Func<string, Task> _copyTextAsync;
     private string _nodeStatus = "Iroh 节点未启动";
     private string _connectionStatus = "未连接";
@@ -30,6 +31,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     private int _profileAvatarIndex;
     private bool _isAgentChatOpen;
     private string _agentChatDraft = "";
+    private string _pendingTrustNode = "";
+    private bool _isAgentIntegrationPromptOpen;
+    private AgentProfile? _activationTarget;
+    private bool _isActivationPromptOpen;
     private readonly AiAgentService _aiAgents = new();
 
     public AppSettings Settings { get; }
@@ -60,6 +65,13 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public ICommand CloseProfileDialogCommand { get; }
     public ICommand SendAgentChatCommand { get; }
     public ICommand CloseAgentChatCommand { get; }
+    public ICommand TrustNodeCommand { get; }
+    public ICommand RejectNodeCommand { get; }
+    public ICommand EnableCodexMcpCommand { get; }
+    public ICommand DeclineCodexMcpCommand { get; }
+    public ICommand ActivateCodexCommand { get; }
+    public ICommand ConfirmActivationCommand { get; }
+    public ICommand CancelActivationCommand { get; }
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public int CurrentPageIndex
@@ -80,6 +92,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             OnPropertyChanged(nameof(IsStatusPage));
             OnPropertyChanged(nameof(IsSettingsPage));
             OnPropertyChanged(nameof(IsRolesPage));
+            if (IsRolesPage && !Settings.AgentIntegrationPromptHandled) IsAgentIntegrationPromptOpen = true;
         }
     }
     public string PageTitle => CurrentPageIndex switch
@@ -115,6 +128,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             Set(ref _connectionStatus, value);
             OnPropertyChanged(nameof(IsConnected));
             OnPropertyChanged(nameof(CanConnect));
+            OnPropertyChanged(nameof(StartServerText));
             OnPropertyChanged(nameof(CanSend));
         }
     }
@@ -151,6 +165,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         }
     }
     public string ServerStatus => IsServerStarted ? "已启动" : "未启动";
+    public string StartServerText => IsServerStarted ? "服务已开启" : "开启服务";
     public bool CanStartServer => !IsServerStarted && !IsBusy;
     public bool IsConnected => ConnectionStatus == "已连接";
     public bool CanConnect => IsServerStarted && !IsBusy && !IsConnected;
@@ -162,6 +177,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public bool CanSend => IsConnected && !string.IsNullOrWhiteSpace(MessageDraft);
     public bool HasMessages => Messages.Count > 0;
     public int MessageCount => Messages.Count;
+    public bool HasAgents => Agents.Count > 0;
+    public string PendingTrustNode { get => _pendingTrustNode; private set { Set(ref _pendingTrustNode, value); OnPropertyChanged(nameof(HasPendingTrust)); } }
+    public bool HasPendingTrust => !string.IsNullOrWhiteSpace(PendingTrustNode);
+    public bool IsAgentIntegrationPromptOpen { get => _isAgentIntegrationPromptOpen; private set => Set(ref _isAgentIntegrationPromptOpen, value); }
+    public bool IsActivationPromptOpen { get => _isActivationPromptOpen; private set => Set(ref _isActivationPromptOpen, value); }
 
     public MainViewModel(Func<string, Task> copyTextAsync)
     {
@@ -205,28 +225,39 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         CloseProfileDialogCommand = new RelayCommand(_ => IsProfileDialogOpen=false);
         SendAgentChatCommand = new AsyncCommand(SendAgentChatAsync);
         CloseAgentChatCommand = new RelayCommand(_ => IsAgentChatOpen = false);
+        TrustNodeCommand = new RelayCommand(_ => TrustPendingNode());
+        RejectNodeCommand = new RelayCommand(_ => { if (!string.IsNullOrWhiteSpace(PendingTrustNode)) { AppendLog($"未信任远程节点：{PendingTrustNode}"); PendingTrustNode = ""; } });
+        EnableCodexMcpCommand = new RelayCommand(_ => EnableCodexMcp());
+        DeclineCodexMcpCommand = new RelayCommand(_ => { Settings.AgentIntegrationPromptHandled = true; Settings.Save(); IsAgentIntegrationPromptOpen = false; });
+        ActivateCodexCommand = new RelayCommand(p => { if (p is AgentProfile agent && agent.Provider == "Codex") { _activationTarget = agent; IsActivationPromptOpen = true; } });
+        CancelActivationCommand = new RelayCommand(_ => { _activationTarget = null; IsActivationPromptOpen = false; });
+        ConfirmActivationCommand = new AsyncCommand(ActivateCodexAsync);
         RefreshAgents();
     }
 
 
     private void RefreshAgents()
     {
-        var selectedId = SelectedAgent?.Id;
-        var discovered = _aiAgents.Discover()
-            .GroupBy(a => a.Id, StringComparer.Ordinal)
-            .Select(g => g.First()).ToDictionary(a => a.Id, StringComparer.Ordinal);
-        for (var i = Agents.Count - 1; i >= 0; i--)
-            if (!discovered.ContainsKey(Agents[i].Id)) Agents.RemoveAt(i);
-        foreach (var a in discovered.Values)
+        try
         {
-            var current = Agents.FirstOrDefault(x => x.Id == a.Id);
-            if (current == null) Agents.Add(a);
-            else current.IsOnline = a.IsOnline;
-            var item = current ?? a;
-            var saved = Settings.AgentProfiles.FirstOrDefault(x => x.Id == item.Id);
-            if (saved != null) { item.Name=saved.Name; item.Role=saved.Role; item.Description=saved.Description; item.AvatarIndex=saved.AvatarIndex; }
+            var selectedId = SelectedAgent?.Id;
+            var discovered = _aiAgents.Discover()
+                .GroupBy(a => a.Id, StringComparer.Ordinal)
+                .Select(g => g.First()).ToDictionary(a => a.Id, StringComparer.Ordinal);
+            for (var i = Agents.Count - 1; i >= 0; i--)
+                if (!discovered.ContainsKey(Agents[i].Id)) Agents.RemoveAt(i);
+            foreach (var a in discovered.Values)
+            {
+                var current = Agents.FirstOrDefault(x => x.Id == a.Id);
+                if (current == null) Agents.Add(a);
+                else current.IsOnline = a.IsOnline;
+                var item = current ?? a;
+                var saved = Settings.AgentProfiles.FirstOrDefault(x => x.Id == item.Id);
+                if (saved != null) { item.Name=saved.Name; item.Role=saved.Role; item.Description=saved.Description; item.AvatarIndex=saved.AvatarIndex; }
+            }
+            if (selectedId != null) SelectedAgent = Agents.FirstOrDefault(a => a.Id == selectedId);
         }
-        if (selectedId != null) SelectedAgent = Agents.FirstOrDefault(a => a.Id == selectedId);
+        catch (Exception ex) { AppendLog($"刷新 Agent 失败：{ex.Message}"); }
     }
 
     public void OpenAgentChat(AgentProfile agent)
@@ -246,6 +277,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         var text = AgentChatDraft.Trim();
         try
         {
+            if (SelectedAgent.Id.StartsWith("codex-process-", StringComparison.Ordinal))
+            {
+                await Task.Run(() => new CodexTaskAdapter().RestartAndStart(text));
+                AgentChatMessages.Add(new ChatEntry("AgentLink", "已重启 Codex，并启动新的任务以激活 AgentLink MCP。", DateTimeOffset.Now, false));
+                AgentChatDraft = "";
+                await Task.Delay(1200);
+                RefreshAgents();
+                return;
+            }
             var message = await Task.Run(() => _aiAgents.Send(SelectedAgent.Id, text));
             AgentChatMessages.Add(new ChatEntry("我", message.Text, message.Timestamp, true));
             AgentChatDraft = "";
@@ -332,6 +372,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                 IsServerStarted = true;
                 Settings.LocalEndpointId = ready.EndpointId;
                 Settings.LocalEndpointAddress = ready.EndpointAddress;
+                _aiAgents.ConfigureNode(ready.EndpointId, Settings.DisplayName);
                 NodeStatus = "Iroh 已上线";
                 AppendLog($"本机 EndpointAddr 已更新：{ready.EndpointAddress}");
             });
@@ -341,10 +382,49 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 if (!ReferenceEquals(_transport, transport)) return;
+                if (AgentLinkSyncService.IsProtocolMessage(args.Message.Text)) return;
                 Messages.Add(new ChatEntry(args.Message.Sender, args.Message.Text, args.Message.Timestamp, false));
             });
         };
+        Agents.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAgents));
+        _sync = new AgentLinkSyncService(_aiAgents, transport);
+        _sync.TrustRequired += (_, nodeId) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(_transport, transport)) return;
+            PendingTrustNode = nodeId;
+            AppendLog($"远程节点 {nodeId} 等待信任确认，尚未同步任何 Agent。 ");
+        });
+        _sync.StatusChanged += (_, status) => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendLog(status));
         return transport;
+    }
+
+    private void TrustPendingNode()
+    {
+        if (string.IsNullOrWhiteSpace(PendingTrustNode) || _sync is null) return;
+        _sync.TrustConnectedNode(PendingTrustNode, PendingTrustNode);
+        AppendLog($"已信任远程节点：{PendingTrustNode}。正在同步获共享的 Agent 目录。");
+        PendingTrustNode = "";
+    }
+
+    private void EnableCodexMcp()
+    {
+        try { AppendLog(new CodexMcpIntegrationService().Enable()); Settings.AgentIntegrationPromptHandled = true; Settings.Save(); IsAgentIntegrationPromptOpen = false; }
+        catch (Exception ex) { AppendLog($"接入 Codex MCP 失败：{ex.Message}"); }
+    }
+
+    private async Task ActivateCodexAsync()
+    {
+        if (_activationTarget is null) return;
+        try
+        {
+            IsActivationPromptOpen = false;
+            await Task.Run(() => new CodexTaskAdapter().RestartAndStart("AgentLink activation request. Start as an active AgentLink Codex task."));
+            AppendLog("已重启 Codex 并启动激活任务。");
+            await Task.Delay(1200);
+            RefreshAgents();
+        }
+        catch (Exception ex) { AppendLog($"激活 Codex 失败：{ex.Message}"); }
+        finally { _activationTarget = null; }
     }
 
     private async Task CopyEndpointAsync()
@@ -383,6 +463,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
 
     private async Task DisposeTransportAsync()
     {
+        var sync = _sync;
+        _sync = null;
+        if (sync is not null) await sync.DisposeAsync();
         var transport = _transport;
         _transport = null;
         if (transport is not null) await transport.DisposeAsync();

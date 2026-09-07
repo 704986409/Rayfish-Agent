@@ -75,7 +75,7 @@ Rust bridge 开发构建：
 
 - 当前只支持一个活动连接。
 - EndpointAddr 包含可分享的节点 ID、Relay 和直接地址；SecretKey 只保存在本机 AppData，不会展示在 UI。
-- 尚未实现设备认证白名单、授权、命令白名单、审计、自动重连和远程 Agent 执行。
+- 已实现按 Iroh EndpointId 的显式节点信任、按 Agent 的显式共享及消息权限；尚未实现命令白名单、审计、自动重连和远程 Agent 执行。
 - Rust 组件尚未在本机编译验证：构建机必须安装 Rust 1.91+。
 - 安装器尚未进行商业代码签名，Windows SmartScreen 可能提示风险。
 
@@ -100,20 +100,21 @@ AgentLink 内置 MCP stdio 服务。启动 `AgentLink.exe --mcp` 后，将该命
 }
 ```
 
-注册后可使用 `agentlink_receive` 读取桌面端发来的消息，并使用 `agentlink_reply` 回复。AgentLink 桌面端右键 Agent 卡片可进入该实例的独立聊天框或设置信息；消息和注册状态保存在当前用户应用数据目录的 `RayLink\\mcp` 下。
+注册后可使用 `agentlink_receive` 读取桌面端或远程 Agent 发来的消息，并使用 `agentlink_reply` 回复。`agentlink_list_agents` 查询本机 Agent 和获授权的远程 Agent；`agentlink_get_agent` 查询其能力和可达状态；`agentlink_set_sharing` 控制当前 Agent 是否共享；`agentlink_send` 按准确的 `agent_id` 和 `conversation_id` 投递远程消息。AgentLink 桌面端右键 Agent 卡片可进入该实例的独立聊天框或设置信息；消息和注册状态保存在当前用户应用数据目录的 `RayLink\\mcp` 下。
 
 ## 下一步开发目标：跨电脑 MCP Agent 发现、共享与通信
 
-> 状态：待开发方案。本节描述下一阶段目标，不代表当前版本已经实现。此次仅更新文档，不修改业务代码。
+> 状态：第一阶段实现中。当前已实现本机 MCP Agent 目录、稳定身份、显式共享、节点信任确认、授权目录快照同步及指定 Agent 的可靠消息队列；尚未完成两台物理电脑上的联调，也未实现自动执行。
 
 ### 1. 当前能力与缺口
 
-当前已具备本地 MCP Agent 注册、收件与回复工具，以及两台 AgentLink 之间的 Iroh 文本通信。尚未实现：
+当前已具备本地 MCP Agent 注册、发现、收件、回复和 Iroh 文本通信。第一阶段已经增加：
 
-- Agent 查询其他 Agent 的发现工具。
-- 通过 Iroh 同步两台电脑的 Agent 注册目录。
-- 面向指定远程 Agent 的消息路由、权限检查和回执。
-- 远程消息到达后自动唤醒或调度 AI 执行任务。
+- 按“节点 ID + 本地实例 ID”生成稳定的 Agent 身份。
+- 经桌面端确认信任后同步显式共享的远程 Agent 目录。
+- 面向指定远程 Agent 的消息路由、去重和送达回执。
+
+远程消息到达后自动唤醒或调度 AI 执行任务仍未实现。
 
 连接同一个 MCP 服务不等于所有 Agent 自动互相认识；AgentLink 需要提供业务层目录与发现工具。两台桌面端能够发送文本，也不等于两端 Agent 已能互相调用。
 
@@ -274,11 +275,11 @@ A1 调用 agentlink_send（目标 B1）
 
 实施顺序：
 
-- [ ] 增加本地 Agent 发现工具与统一身份定义。
-- [ ] 增加节点信任确认、按对端共享 Agent 和消息访问权限。
-- [ ] 通过 Iroh 双向同步授权目录，区分本机和远程 Agent。
-- [ ] 增加指定 Agent 的消息路由、收件、回复与回执。
-- [ ] 完成断线标记、重连快照同步、目录与消息去重。
+- [x] 增加本地 Agent 发现工具与统一身份定义。
+- [x] 增加节点信任确认、按对端共享 Agent 和消息访问权限。
+- [x] 通过 Iroh 双向同步授权目录，区分本机和远程 Agent。
+- [x] 增加指定 Agent 的消息路由、收件、回复与送达回执。
+- [x] 完成断线标记、重连快照同步、目录与消息去重。
 - [ ] 完成两台电脑上的双向联调和权限测试。
 
 验收要求：

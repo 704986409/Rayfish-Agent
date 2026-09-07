@@ -36,9 +36,12 @@ public sealed class IrohTransport : IAsyncDisposable
 
     public event EventHandler<PeerMessageEventArgs>? MessageReceived;
     public event EventHandler<string>? StatusChanged;
+    public event EventHandler<string>? Connected;
+    public event EventHandler<string>? Disconnected;
     public event EventHandler<IrohReadyEventArgs>? Ready;
     public bool IsRunning => _process is { HasExited: false };
     public bool IsConnected { get; private set; }
+    public string RemoteEndpointId { get; private set; } = "";
     public string ExecutablePath => ResolveExecutable(_settings.TransportExecutable);
 
     public IrohTransport(AppSettings settings) => _settings = settings;
@@ -130,7 +133,10 @@ public sealed class IrohTransport : IAsyncDisposable
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsRunning) await SendCommandAsync(new { type = "disconnect" }, cancellationToken);
+        var remoteId = RemoteEndpointId;
         IsConnected = false;
+        RemoteEndpointId = "";
+        if (!string.IsNullOrWhiteSpace(remoteId)) Disconnected?.Invoke(this, remoteId);
     }
 
     private async Task SendCommandAsync(object command, CancellationToken cancellationToken)
@@ -174,8 +180,15 @@ public sealed class IrohTransport : IAsyncDisposable
                     IsConnected = true;
                     _connectSource?.TrySetResult(true);
                     var remoteId = root.TryGetProperty("remote_id", out var remoteNode) ? remoteNode.GetString() : null;
+                    RemoteEndpointId = remoteId ?? "";
+                    if (!string.IsNullOrWhiteSpace(RemoteEndpointId)) Connected?.Invoke(this, RemoteEndpointId);
                     StatusChanged?.Invoke(this, string.IsNullOrWhiteSpace(remoteId) ? message : $"{message} 远程 ID：{remoteId}"); break;
-                case "disconnected": IsConnected = false; StatusChanged?.Invoke(this, string.IsNullOrWhiteSpace(message) ? "Iroh 连接已断开。" : message); break;
+                case "disconnected":
+                    var disconnectedId = RemoteEndpointId;
+                    IsConnected = false;
+                    RemoteEndpointId = "";
+                    if (!string.IsNullOrWhiteSpace(disconnectedId)) Disconnected?.Invoke(this, disconnectedId);
+                    StatusChanged?.Invoke(this, string.IsNullOrWhiteSpace(message) ? "Iroh 连接已断开。" : message); break;
                 case "message":
                     var sender = root.TryGetProperty("sender", out var senderNode) ? senderNode.GetString() ?? "远程节点" : "远程节点";
                     var text = root.TryGetProperty("text", out var textNode) ? textNode.GetString() ?? "" : "";
@@ -194,7 +207,10 @@ public sealed class IrohTransport : IAsyncDisposable
 
     private void OnProcessExited(object? sender, EventArgs e)
     {
+        var remoteId = RemoteEndpointId;
         IsConnected = false;
+        RemoteEndpointId = "";
+        if (!string.IsNullOrWhiteSpace(remoteId)) Disconnected?.Invoke(this, remoteId);
         _connectSource?.TrySetException(new InvalidOperationException("Iroh 通信组件已退出。"));
         var exitCode = _process?.ExitCode;
         _readySource?.TrySetException(new InvalidOperationException($"Iroh 通信组件提前退出（退出码 {exitCode}）。"));
