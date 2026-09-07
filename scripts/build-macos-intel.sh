@@ -22,7 +22,9 @@ mkdir -p "$BIN" "$APP/Contents/Resources"
 rustup target add x86_64-apple-darwin
 cargo build --locked --release --manifest-path native/iroh-transport/Cargo.toml --target x86_64-apple-darwin
 dotnet publish src/RayLink.App/RayLink.App.csproj -c Release -r osx-x64 \
-  --self-contained true -p:UseAppHost=true -p:PublishSingleFile=false -o "$BIN"
+  --self-contained true -p:UseAppHost=true -p:PublishSingleFile=true \
+  -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true \
+  -p:DebugType=None -p:DebugSymbols=false -o "$BIN"
 cp native/iroh-transport/target/x86_64-apple-darwin/release/raylink-iroh-transport "$BIN/RayLink.Transport"
 chmod +x "$BIN/RayLink" "$BIN/RayLink.Transport"
 # Both binaries must contain an Intel slice, not Windows or ARM-only binaries.
@@ -49,11 +51,7 @@ PLIST
 plutil -lint "$APP/Contents/Info.plist"
 # Internal test package: ad-hoc signature only, NOT Developer ID/notarized.
 # No hardened runtime here; .NET JIT requires entitlements when that is enabled.
-while IFS= read -r -d '' binary; do
-  if file -b "$binary" | grep -q 'Mach-O'; then
-    codesign --force --sign - "$binary"
-  fi
-done < <(find "$BIN" -type f -print0)
+codesign --force --sign - "$BIN/RayLink.Transport"
 codesign --force --sign - "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 cat > "$BUILD/stage/READ-ME.txt" <<'NOTICE'
