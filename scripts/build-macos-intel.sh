@@ -26,8 +26,8 @@ dotnet publish src/RayLink.App/RayLink.App.csproj -c Release -r osx-x64 \
 cp native/iroh-transport/target/x86_64-apple-darwin/release/raylink-iroh-transport "$BIN/RayLink.Transport"
 chmod +x "$BIN/RayLink" "$BIN/RayLink.Transport"
 # Both binaries must contain an Intel slice, not Windows or ARM-only binaries.
-lipo -verify_arch x86_64 "$BIN/RayLink"
-lipo -verify_arch x86_64 "$BIN/RayLink.Transport"
+lipo "$BIN/RayLink" -verify_arch x86_64
+lipo "$BIN/RayLink.Transport" -verify_arch x86_64
 cp THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 cp -R third-party/iroh "$APP/Contents/Resources/iroh"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
