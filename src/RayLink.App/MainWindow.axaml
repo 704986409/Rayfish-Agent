@@ -430,7 +430,7 @@
                       </Border>
                     </DataTemplate></ItemsControl.ItemTemplate>
                   </ItemsControl>
-                  <TextBlock Classes="muted" IsVisible="{Binding !HasAgents}" Text="未发现运行中的 Agent。请确认 Codex 已启动，或在设置中一键接入 Codex MCP。" />
+                  <TextBlock Classes="muted" IsVisible="{Binding !HasAgents}" Text="未发现运行中的 Agent。请在设置中接入 Codex、Claude Code、Cursor 或其他 MCP 客户端。" />
                 </StackPanel>
               </Border>
             </StackPanel>
@@ -448,7 +448,7 @@
                 </StackPanel>
               </Border>
               <Border Classes="surface" Padding="22">
-                <StackPanel Spacing="10"><TextBlock Classes="section-title" Text="Codex MCP 接入"/><TextBlock Classes="muted" Text="一键写入本机 Codex 配置。优点是新会话自动拥有 AgentLink 工具；代价是每个新会话会启动本地 MCP 进程，现有会话需要重开。"/><Button Classes="secondary" Content="一键接入 Codex MCP" Command="{Binding EnableCodexMcpCommand}" HorizontalAlignment="Left"/></StackPanel>
+                <StackPanel Spacing="10"><TextBlock Classes="section-title" Text="MCP 客户端接入"/><TextBlock Classes="muted" Text="将 AgentLink MCP 写入客户端配置。重启或新建客户端会话后，调用 agentlink_register 注册实际 Agent。"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Classes="secondary" Content="接入 Codex" Command="{Binding EnableCodexMcpCommand}"/><Button Classes="secondary" Content="接入 Claude Code" Command="{Binding EnableClaudeMcpCommand}"/><Button Classes="secondary" Content="接入 Cursor" Command="{Binding EnableCursorMcpCommand}"/></StackPanel></StackPanel>
               </Border>
               <Border Classes="surface" Padding="22">
                 <StackPanel Spacing="8">
@@ -481,7 +481,7 @@
       </Border>
     </Border>
     <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsAgentIntegrationPromptOpen}">
-      <Border Classes="surface" Width="500" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel Spacing="14"><TextBlock Classes="section-title" Text="接入 Codex Agent？"/><TextBlock Classes="muted" Text="是否自动将 AgentLink MCP 写入本机 Codex 配置？接入后新的 Codex 会话可注册为 Agent，并会额外启动一个本地 MCP 进程。"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="secondary" Content="暂不接入" Command="{Binding DeclineCodexMcpCommand}"/><Button Classes="primary" Content="一键接入" Command="{Binding EnableCodexMcpCommand}"/></StackPanel></StackPanel></Border>
+      <Border Classes="surface" Width="500" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel Spacing="14"><TextBlock Classes="section-title" Text="接入 MCP Agent？"/><TextBlock Classes="muted" Text="可在设置中将 AgentLink MCP 写入 Codex、Claude Code 或 Cursor。接入后请在对应客户端调用 agentlink_register 注册实际 Agent。"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="secondary" Content="暂不接入" Command="{Binding DeclineCodexMcpCommand}"/><Button Classes="primary" Content="前往设置" Command="{Binding NavigateCommand}" CommandParameter="4"/></StackPanel></StackPanel></Border>
     </Border>
     <Border Grid.RowSpan="2" Background="#60000000" IsVisible="{Binding IsActivationPromptOpen}">
       <Border Classes="surface" Width="500" Padding="26" HorizontalAlignment="Center" VerticalAlignment="Center"><StackPanel Spacing="14"><TextBlock Classes="section-title" Text="激活 Codex？"/><TextBlock Classes="muted" Text="激活会关闭当前 Codex 对话窗口和正在运行的 Codex 程序，然后重新启动 Codex 并创建一个新的 AgentLink 激活任务。未保存的交互可能丢失。"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"><Button Classes="secondary" Content="取消" Command="{Binding CancelActivationCommand}"/><Button Classes="primary" Content="确认激活" Command="{Binding ConfirmActivationCommand}"/></StackPanel></StackPanel></Border>

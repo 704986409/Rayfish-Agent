@@ -79,9 +79,9 @@ public sealed class IrohTransport : IAsyncDisposable
             _ = ReadStdoutAsync(_process.StandardOutput, _cts.Token);
             _ = ReadStderrAsync(_process.StandardError, _cts.Token);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(90));
+            timeout.CancelAfter(TimeSpan.FromSeconds(30));
             try { await _readySource.Task.WaitAsync(timeout.Token); }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new TimeoutException("Iroh 通信组件在 90 秒内没有完成联网初始化。"); }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new TimeoutException("Iroh 通信组件在 30 秒内没有完成初始化。"); }
         }
         catch { await StopProcessAsync(); throw; }
         finally { _startLock.Release(); }

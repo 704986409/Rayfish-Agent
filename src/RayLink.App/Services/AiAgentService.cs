@@ -62,20 +62,23 @@ public sealed class AiAgentService
         state.DirectoryVersion++; return LocalAgentId(state, instanceId);
     });
 
-    // A desktop installation represents one local Codex Agent. New MCP
-    // connections take over this stable entry instead of creating duplicate
-    // cards for every Codex task or reconnect.
-    public string RegisterDefaultCodexSession(string owner, string name) => Access(state =>
+    // A desktop installation represents one local MCP Agent per provider.
+    // Reconnects take over the stable provider entry instead of creating
+    // duplicate cards for every client process.
+    public string RegisterDefaultSession(string owner, string provider, string name) => Access(state =>
     {
-        const string instanceId = "codex-mcp-client";
+        provider = string.IsNullOrWhiteSpace(provider) ? "MCP" : provider.Trim();
+        var slug = new string(provider.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(slug)) slug = "client";
+        var instanceId = $"mcp-{slug}";
         var previous = state.Agents.GetValueOrDefault(instanceId);
         foreach (var key in state.Agents.Where(x => x.Value.Owner == owner && x.Key != instanceId).Select(x => x.Key).ToArray()) state.Agents.Remove(key);
         state.Agents[instanceId] = new Registration
         {
             InstanceId = instanceId,
             Owner = owner,
-            Provider = "Codex",
-            Name = string.IsNullOrWhiteSpace(name) ? "Codex" : name,
+            Provider = provider,
+            Name = string.IsNullOrWhiteSpace(name) ? provider : name,
             Role = previous?.Role ?? "",
             Capabilities = previous?.Capabilities ?? [],
             Shared = previous?.Shared ?? false,

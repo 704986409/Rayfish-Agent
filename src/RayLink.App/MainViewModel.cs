@@ -69,6 +69,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public ICommand TrustNodeCommand { get; }
     public ICommand RejectNodeCommand { get; }
     public ICommand EnableCodexMcpCommand { get; }
+    public ICommand EnableClaudeMcpCommand { get; }
+    public ICommand EnableCursorMcpCommand { get; }
     public ICommand DeclineCodexMcpCommand { get; }
     public ICommand ActivateCodexCommand { get; }
     public ICommand ConfirmActivationCommand { get; }
@@ -241,6 +243,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         TrustNodeCommand = new RelayCommand(_ => TrustPendingNode());
         RejectNodeCommand = new RelayCommand(_ => { if (!string.IsNullOrWhiteSpace(PendingTrustNode)) { AppendLog($"未信任远程节点：{PendingTrustNode}"); PendingTrustNode = ""; } });
         EnableCodexMcpCommand = new RelayCommand(_ => EnableCodexMcp());
+        EnableClaudeMcpCommand = new RelayCommand(_ => EnableJsonMcp("Claude Code", new McpClientIntegrationService().EnableClaudeCode));
+        EnableCursorMcpCommand = new RelayCommand(_ => EnableJsonMcp("Cursor", new McpClientIntegrationService().EnableCursor));
         DeclineCodexMcpCommand = new RelayCommand(_ => { Settings.AgentIntegrationPromptHandled = true; Settings.Save(); IsAgentIntegrationPromptOpen = false; });
         ActivateCodexCommand = new RelayCommand(p => { if (p is AgentProfile agent && agent.Provider == "Codex") { _activationTarget = agent; IsActivationPromptOpen = true; } });
         CancelActivationCommand = new RelayCommand(_ => { _activationTarget = null; IsActivationPromptOpen = false; });
@@ -258,8 +262,13 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                 .Where(a => a.Id != "codex-mcp-client")
                 .GroupBy(a => a.Id, StringComparer.Ordinal)
                 .Select(g => g.First()).ToDictionary(a => a.Id, StringComparer.Ordinal);
-            if (!string.IsNullOrWhiteSpace(Settings.ManagedCodexThreadId))
+            var hasManagedCodex = !string.IsNullOrWhiteSpace(Settings.ManagedCodexThreadId);
+            if (hasManagedCodex)
+            {
+                foreach (var id in discovered.Keys.Where(id => id.StartsWith("codex-process-", StringComparison.Ordinal)).ToArray())
+                    discovered.Remove(id);
                 discovered["managed-codex"] = new AgentProfile("managed-codex", "Codex", "Codex", "AgentLink 受管会话", "桌面与远程消息将直接追加到同一 Codex 会话。") { IsOnline = true };
+            }
             for (var i = Agents.Count - 1; i >= 0; i--)
                 if (!discovered.ContainsKey(Agents[i].Id)) Agents.RemoveAt(i);
             foreach (var a in discovered.Values)
@@ -468,6 +477,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     {
         try { AppendLog(new CodexMcpIntegrationService().Enable()); Settings.AgentIntegrationPromptHandled = true; Settings.Save(); IsAgentIntegrationPromptOpen = false; }
         catch (Exception ex) { AppendLog($"接入 Codex MCP 失败：{ex.Message}"); }
+    }
+
+    private void EnableJsonMcp(string clientName, Func<string> enable)
+    {
+        try { AppendLog(enable()); }
+        catch (Exception ex) { AppendLog($"接入 {clientName} MCP 失败：{ex.Message}"); }
     }
 
     private async Task ActivateCodexAsync()

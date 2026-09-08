@@ -68,7 +68,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .await?;
     let endpoint = Arc::new(endpoint);
 
-    endpoint.online().await;
+    // Relay/NAT discovery may be unavailable or slow. The endpoint is usable
+    // for direct connections immediately, so perform the online check in the
+    // background instead of holding desktop startup hostage to the network.
+    let online_endpoint = endpoint.clone();
+    tokio::spawn(async move {
+        if tokio::time::timeout(Duration::from_secs(10), online_endpoint.online())
+            .await
+            .is_err()
+        {
+            warn!("Iroh relay online check timed out; continuing with the local endpoint");
+        }
+    });
     emit(
         &output,
         json!({

@@ -15,6 +15,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
     private CancellationTokenSource? _stop;
     private string _activeThreadId = "";
     private int _nextId;
+    private readonly ConcurrentDictionary<string, string> _messageDeltas = new();
 
     public event EventHandler<string>? AgentMessage;
     public event EventHandler<string>? StatusChanged;
@@ -29,7 +30,10 @@ public sealed class CodexAppServerService : IAsyncDisposable
             return await StartThreadAsync(cancellationToken);
         try
         {
-            await RequestAsync("thread/resume", new { threadId }, cancellationToken);
+            // A stale app-server can block thread/resume while its model
+            // manager refreshes. Recovery must be quick so the user's message
+            // can continue on a fresh thread instead of timing out at 30s.
+            await RequestAsync("thread/resume", new { threadId }, cancellationToken, TimeSpan.FromSeconds(5));
             await SetThreadNameAsync(threadId, cancellationToken);
             _activeThreadId = threadId;
             return threadId;
@@ -39,10 +43,55 @@ public sealed class CodexAppServerService : IAsyncDisposable
             StatusChanged?.Invoke(this, "原 Codex 会话已失效，正在自动创建新会话。");
             return await StartThreadAsync(cancellationToken);
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("thread not found", StringComparison.OrdinalIgnoreCase))
+        {
+            StatusChanged?.Invoke(this, "原 Codex 会话已找不到，正在自动创建新会话。");
+            return await StartThreadAsync(cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            StatusChanged?.Invoke(this, "恢复原 Codex 会话超时，正在自动创建新会话。");
+            return await StartThreadAsync(cancellationToken);
+        }
     }
 
-    public Task SendAsync(string threadId, string text, CancellationToken cancellationToken = default) =>
-        RequestAsync("turn/start", new { threadId, input = new[] { new { type = "text", text } } }, cancellationToken);
+    public async Task SendAsync(string threadId, string text, CancellationToken cancellationToken = default)
+    {
+        // turn/start acknowledges submission before the model has finished. Do
+        // not hold the UI command open while Codex refreshes models or starts
+        // MCP servers; the actual reply arrives through notifications below.
+        var id = Interlocked.Increment(ref _nextId);
+        var pending = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_requests.TryAdd(id, pending)) throw new InvalidOperationException("Codex 请求编号冲突。");
+        try
+        {
+            await WriteAsync(new { jsonrpc = "2.0", id, method = "turn/start", @params = new { threadId, input = new[] { new { type = "text", text } } } }, cancellationToken);
+        }
+        catch
+        {
+            _requests.TryRemove(id, out _);
+            throw;
+        }
+        _ = ObserveTurnSubmissionAsync(id, pending);
+    }
+
+    private async Task ObserveTurnSubmissionAsync(int id, TaskCompletionSource<JsonElement> pending)
+    {
+        try
+        {
+            await pending.Task.WaitAsync(TimeSpan.FromMinutes(5));
+        }
+        catch (TimeoutException)
+        {
+            ConversationError?.Invoke(this, "Codex 长时间没有确认本轮消息，仍会继续监听回复事件。");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            ConversationError?.Invoke(this, ex.Message);
+        }
+        finally { _requests.TryRemove(id, out _); }
+    }
 
     private async Task<string> StartThreadAsync(CancellationToken cancellationToken)
     {
@@ -90,7 +139,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
         finally { _startLock.Release(); }
     }
 
-    private async Task<JsonElement> RequestAsync(string method, object parameters, CancellationToken cancellationToken)
+    private async Task<JsonElement> RequestAsync(string method, object parameters, CancellationToken cancellationToken, TimeSpan? timeout = null)
     {
         var id = Interlocked.Increment(ref _nextId);
         var pending = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -98,7 +147,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
         try
         {
             await WriteAsync(new { jsonrpc = "2.0", id, method, @params = parameters }, cancellationToken);
-            return await pending.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            return await pending.Task.WaitAsync(timeout ?? TimeSpan.FromSeconds(30), cancellationToken);
         }
         finally { _requests.TryRemove(id, out _); }
     }
@@ -147,10 +196,26 @@ public sealed class CodexAppServerService : IAsyncDisposable
             return;
         }
         if (!root.TryGetProperty("method", out var method) || !root.TryGetProperty("params", out var parameters)) return;
-        if (method.GetString() == "item/completed" && parameters.TryGetProperty("item", out var item) &&
-            item.TryGetProperty("type", out var type) && type.GetString() == "agentMessage" && item.TryGetProperty("text", out var text))
-            AgentMessage?.Invoke(this, text.GetString() ?? "");
-        else if (method.GetString() == "turn/completed")
+        var methodName = method.GetString();
+        if (methodName == "item/agentMessage/delta" && parameters.TryGetProperty("itemId", out var itemId) &&
+            parameters.TryGetProperty("delta", out var delta))
+        {
+            var messageId = itemId.GetString();
+            var text = delta.GetString() ?? "";
+            if (!string.IsNullOrWhiteSpace(messageId) && text.Length > 0)
+                _messageDeltas.AddOrUpdate(messageId, text, (_, previous) => previous + text);
+        }
+        else if (methodName == "item/completed" && parameters.TryGetProperty("item", out var item) &&
+            item.TryGetProperty("type", out var type) && type.GetString() == "agentMessage")
+        {
+            var completedItemId = item.TryGetProperty("id", out var idValue) ? idValue.GetString() : null;
+            var finalText = item.TryGetProperty("text", out var textValue) ? textValue.GetString() : null;
+            if (string.IsNullOrWhiteSpace(finalText) && !string.IsNullOrWhiteSpace(completedItemId))
+                _messageDeltas.TryGetValue(completedItemId, out finalText);
+            if (!string.IsNullOrWhiteSpace(completedItemId)) _messageDeltas.TryRemove(completedItemId, out _);
+            if (!string.IsNullOrWhiteSpace(finalText)) AgentMessage?.Invoke(this, finalText);
+        }
+        else if (methodName == "turn/completed")
         {
             if (parameters.TryGetProperty("turn", out var turn) && turn.TryGetProperty("status", out var status) && status.GetString() == "failed")
             {

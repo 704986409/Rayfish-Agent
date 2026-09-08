@@ -100,7 +100,7 @@ AgentLink 内置 MCP stdio 服务。启动 `AgentLink.exe --mcp` 后，将该命
 }
 ```
 
-注册后可使用 `agentlink_receive` 读取桌面端或远程 Agent 发来的消息，并使用 `agentlink_reply` 回复。`agentlink_list_agents` 查询本机 Agent 和获授权的远程 Agent；`agentlink_get_agent` 查询其能力和可达状态；`agentlink_set_sharing` 控制当前 Agent 是否共享；`agentlink_send` 按准确的 `agent_id` 和 `conversation_id` 投递远程消息。AgentLink 桌面端右键 Agent 卡片可进入该实例的独立聊天框或设置信息；消息和注册状态保存在当前用户应用数据目录的 `RayLink\\mcp` 下。
+注册后可使用 `agentlink_receive` 读取桌面端或远程 Agent 发来的消息，并使用 `agentlink_reply` 回复。`agentlink_list_agents` 查询本机 Agent 和获授权的远程 Agent；`agentlink_get_agent` 查询其能力和可达状态；`agentlink_set_sharing` 控制当前 Agent 是否共享；`agentlink_send` 按准确的 `agent_id` 和 `conversation_id` 投递远程消息。AgentLink 桌面端右键 Agent 卡片可进入该实例的独立聊天框或设置信息；消息和注册状态保存在当前用户应用数据目录的 `RayLink\\mcp` 下。MCP 会话会按客户端声明的名称记录 Provider，不限于 Codex；设置页可一键写入 Claude Code 的 `%USERPROFILE%\\.claude.json` 和 Cursor 的 `%USERPROFILE%\\.cursor\\mcp.json`，其他客户端可手动使用相同的 stdio 配置。
 
 ## 下一步开发目标：跨电脑 MCP Agent 发现、共享与通信
 
