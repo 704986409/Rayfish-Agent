@@ -36,6 +36,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     private AgentProfile? _activationTarget;
     private bool _isActivationPromptOpen;
     private readonly AiAgentService _aiAgents = new();
+    private readonly CodexAppServerService _codex = new();
 
     public AppSettings Settings { get; }
     public ObservableCollection<ChatEntry> Messages { get; } = [];
@@ -187,6 +188,18 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     {
         _copyTextAsync = copyTextAsync;
         Settings = AppSettings.Load();
+        _codex.AgentMessage += (_, text) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            var entry = new ChatEntry("Codex", text, DateTimeOffset.Now, false);
+            SaveManagedCodexEntry(entry);
+            if (IsAgentChatOpen && SelectedAgent?.Id == "managed-codex")
+                AgentChatMessages.Add(entry);
+        });
+        _codex.StatusChanged += (_, status) => Avalonia.Threading.Dispatcher.UIThread.Post(() => AppendLog(status));
+        _codex.ConversationError += (_, error) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            AgentChatMessages.Add(new ChatEntry("AgentLink", $"Codex 回复失败：{error}", DateTimeOffset.Now, false));
+        });
         Settings.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(AppSettings.DisplayName)) OnPropertyChanged(nameof(LocalNodeName));
@@ -242,8 +255,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         {
             var selectedId = SelectedAgent?.Id;
             var discovered = _aiAgents.Discover()
+                .Where(a => a.Id != "codex-mcp-client")
                 .GroupBy(a => a.Id, StringComparer.Ordinal)
                 .Select(g => g.First()).ToDictionary(a => a.Id, StringComparer.Ordinal);
+            if (!string.IsNullOrWhiteSpace(Settings.ManagedCodexThreadId))
+                discovered["managed-codex"] = new AgentProfile("managed-codex", "Codex", "Codex", "AgentLink 受管会话", "桌面与远程消息将直接追加到同一 Codex 会话。") { IsOnline = true };
             for (var i = Agents.Count - 1; i >= 0; i--)
                 if (!discovered.ContainsKey(Agents[i].Id)) Agents.RemoveAt(i);
             foreach (var a in discovered.Values)
@@ -265,8 +281,16 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         SelectedAgent = agent;
         AgentChatMessages.Clear();
         AgentChatDraft = "";
-        foreach (var message in _aiAgents.ReadMessages(agent.Id))
-            AgentChatMessages.Add(new ChatEntry(message.Sender, message.Text, message.Timestamp, message.IsLocal));
+        if (agent.Id == "managed-codex")
+        {
+            foreach (var message in Settings.ManagedCodexChatHistory)
+                AgentChatMessages.Add(new ChatEntry(message.Sender, message.Text, message.Timestamp, message.IsLocal));
+        }
+        else
+        {
+            foreach (var message in _aiAgents.ReadMessages(agent.Id))
+                AgentChatMessages.Add(new ChatEntry(message.Sender, message.Text, message.Timestamp, message.IsLocal));
+        }
         IsAgentChatOpen = true;
         OnPropertyChanged(nameof(CanSendAgentChat));
     }
@@ -286,11 +310,45 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                 RefreshAgents();
                 return;
             }
-            var message = await Task.Run(() => _aiAgents.Send(SelectedAgent.Id, text));
-            AgentChatMessages.Add(new ChatEntry("我", message.Text, message.Timestamp, true));
-            AgentChatDraft = "";
+            if (SelectedAgent.Id == "managed-codex")
+            {
+                if (string.IsNullOrWhiteSpace(Settings.ManagedCodexThreadId)) throw new InvalidOperationException("请先激活 Codex 会话。");
+                var entry = new ChatEntry("我", text, DateTimeOffset.Now, true);
+                AgentChatMessages.Add(entry);
+                SaveManagedCodexEntry(entry);
+                AgentChatDraft = "";
+                Settings.ManagedCodexThreadId = await _codex.EnsureThreadAsync(Settings.ManagedCodexThreadId);
+                Settings.Save();
+                await _codex.SendAsync(Settings.ManagedCodexThreadId, text);
+                AgentChatMessages.Add(new ChatEntry("AgentLink", "消息已提交到 Codex 会话“AgentLink · Codex”，正在等待回复。该会话也会出现在 Codex 最近会话中。", DateTimeOffset.Now, false));
+            }
+            else
+            {
+                var message = await Task.Run(() => _aiAgents.Send(SelectedAgent.Id, text));
+                AgentChatMessages.Add(new ChatEntry("我", message.Text, message.Timestamp, true));
+                AgentChatDraft = "";
+            }
         }
-        catch (Exception ex) { AppendLog($"发送 Agent 消息失败：{ex.Message}"); }
+        catch (Exception ex)
+        {
+            AppendLog($"发送 Agent 消息失败：{ex.Message}");
+            AgentChatMessages.Add(new ChatEntry("AgentLink", $"发送失败：{ex.Message}", DateTimeOffset.Now, false));
+        }
+    }
+
+    private void SaveManagedCodexEntry(ChatEntry entry)
+    {
+        Settings.ManagedCodexChatHistory.Add(new StoredChatEntry
+        {
+            Sender = entry.Sender,
+            Text = entry.Text,
+            Timestamp = entry.Timestamp,
+            IsLocal = entry.IsLocal
+        });
+        if (Settings.ManagedCodexChatHistory.Count > 500)
+            Settings.ManagedCodexChatHistory.RemoveRange(0, Settings.ManagedCodexChatHistory.Count - 500);
+        try { Settings.Save(); }
+        catch (Exception ex) { AppendLog($"保存 Codex 聊天历史失败：{ex.Message}"); }
     }
 
     private void LoadProfile(AgentProfile a) { ProfileName=a.Name; ProfileRole=a.Role; ProfileDescription=a.Description; ProfileAvatarIndex=a.AvatarIndex; }
@@ -418,9 +476,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         try
         {
             IsActivationPromptOpen = false;
-            await Task.Run(() => new CodexTaskAdapter().RestartAndStart("AgentLink activation request. Start as an active AgentLink Codex task."));
-            AppendLog("已重启 Codex 并启动激活任务。");
-            await Task.Delay(1200);
+            Settings.ManagedCodexThreadId = await _codex.EnsureThreadAsync(Settings.ManagedCodexThreadId);
+            Settings.Save();
+            AppendLog("Codex 受管会话已激活，后续消息会直接追加到该会话。");
             RefreshAgents();
         }
         catch (Exception ex) { AppendLog($"激活 Codex 失败：{ex.Message}"); }
@@ -482,7 +540,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     }
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null) { if (EqualityComparer<T>.Default.Equals(field, value)) return; field = value; OnPropertyChanged(name); }
     private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    public async ValueTask DisposeAsync() => await DisposeTransportAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeTransportAsync();
+        await _codex.DisposeAsync();
+    }
 }
 
 public sealed class RelayCommand(Action<object?> execute) : ICommand

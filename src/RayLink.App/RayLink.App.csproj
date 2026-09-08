@@ -9,7 +9,7 @@
     <RuntimeIdentifiers>win-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <RootNamespace>RayLink.App</RootNamespace>
     <AssemblyName>AgentLink</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.4</Version>
   </PropertyGroup>
 
   <ItemGroup>

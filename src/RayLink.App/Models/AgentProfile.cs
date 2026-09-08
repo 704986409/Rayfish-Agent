@@ -16,6 +16,7 @@ public sealed class AgentProfile : INotifyPropertyChanged
     public string AgentId { get; set; } = "";
     public string Provider { get; }
     public bool IsCodex => string.Equals(Provider, "Codex", StringComparison.OrdinalIgnoreCase);
+    public bool CanActivate { get; init; }
     public string Name { get => _name; set => Set(ref _name,value); }
     public string Role { get => _role; set => Set(ref _role,value); }
     public string Description { get => _description; set => Set(ref _description,value); }

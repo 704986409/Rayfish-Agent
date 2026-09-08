@@ -1,4 +1,5 @@
 using Avalonia.Input;
+using System.Diagnostics;
 using Avalonia.Interactivity;
 using Avalonia.Controls.Presenters;
 using Avalonia.Threading;
@@ -8,6 +9,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Markup.Xaml;
 using Avalonia.Controls.Primitives;
 using RayLink.App.Models;
+using RayLink.App.Services;
 
 namespace RayLink.App;
 
@@ -48,6 +50,10 @@ public partial class MainWindow : Window
             try
             {
                 if (DataContext is MainViewModel viewModel) await viewModel.DisposeAsync();
+                // Closing the desktop app is a full shutdown: terminate MCP
+                // workers and any remaining Iroh bridge from this installation.
+                var remaining = await Task.Run(AgentLinkProcessManager.StopSiblingProcesses);
+                if (remaining.Count > 0) Debug.WriteLine($"AgentLink background processes still running: {string.Join(", ", remaining)}");
             }
             finally { _disposed = true; Close(); }
         };
@@ -58,8 +64,20 @@ public partial class MainWindow : Window
     private static AgentProfile? GetAgentFromMenu(object? sender)
     {
         if (sender is not MenuItem item) return null;
-        var menu = item.Parent as ContextMenu;
-        return (menu?.PlacementTarget as Control)?.DataContext as AgentProfile;
+        // ContextMenu is hosted in a popup, so it does not reliably inherit the
+        // card's data context. Prefer the context set when the menu opened.
+        if (item.DataContext is AgentProfile agent) return agent;
+
+        for (Control? current = item; current is not null; current = current.Parent as Control)
+            if (current is ContextMenu menu)
+                return (menu.PlacementTarget as Control)?.DataContext as AgentProfile;
+        return null;
+    }
+
+    private static void OnAgentMenuOpened(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ContextMenu menu && menu.PlacementTarget is Control target)
+            menu.DataContext = target.DataContext;
     }
 
     private void OnAgentChatMenuClick(object? sender, RoutedEventArgs e)

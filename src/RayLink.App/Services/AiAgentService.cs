@@ -47,7 +47,7 @@ public sealed class AiAgentService
         foreach (var process in Process.GetProcessesByName("codex"))
         {
             if (agents.Any(a => a.Provider == "Codex")) break;
-            agents.Add(new AgentProfile($"codex-process-{process.Id}", "Codex", "Codex", "已检测到，发送消息即可重启并激活", "Codex 桌面进程已运行；通过 AgentLink 发送消息会重启 Codex 并启动激活任务。") { IsOnline = true });
+            agents.Add(new AgentProfile($"codex-process-{process.Id}", "Codex", "Codex", "已检测到，尚未接入 AgentLink", "请点击激活，创建一个 AgentLink Codex 任务。") { IsOnline = true, CanActivate = true });
         }
         return agents;
     });
@@ -61,6 +61,31 @@ public sealed class AiAgentService
         state.Agents[instanceId] = new Registration { InstanceId = instanceId, Owner = owner, Provider = provider, Name = name, Role = role, Capabilities = capabilities?.Distinct(StringComparer.Ordinal).ToList() ?? [], Shared = existing?.Shared ?? false, LastSeen = DateTimeOffset.UtcNow };
         state.DirectoryVersion++; return LocalAgentId(state, instanceId);
     });
+
+    // A desktop installation represents one local Codex Agent. New MCP
+    // connections take over this stable entry instead of creating duplicate
+    // cards for every Codex task or reconnect.
+    public string RegisterDefaultCodexSession(string owner, string name) => Access(state =>
+    {
+        const string instanceId = "codex-mcp-client";
+        var previous = state.Agents.GetValueOrDefault(instanceId);
+        foreach (var key in state.Agents.Where(x => x.Value.Owner == owner && x.Key != instanceId).Select(x => x.Key).ToArray()) state.Agents.Remove(key);
+        state.Agents[instanceId] = new Registration
+        {
+            InstanceId = instanceId,
+            Owner = owner,
+            Provider = "Codex",
+            Name = string.IsNullOrWhiteSpace(name) ? "Codex" : name,
+            Role = previous?.Role ?? "",
+            Capabilities = previous?.Capabilities ?? [],
+            Shared = previous?.Shared ?? false,
+            LastSeen = DateTimeOffset.UtcNow
+        };
+        state.DirectoryVersion++;
+        return LocalAgentId(state, instanceId);
+    });
+
+    public bool HasLiveCodexAgent() => Access(state => state.Agents.Values.Any(a => IsLive(a) && string.Equals(a.Provider, "Codex", StringComparison.OrdinalIgnoreCase)));
 
     public void SetSharing(string owner, bool shared) => Access(state => { var agent = RequireAgent(state, owner); agent.Shared = shared; state.DirectoryVersion++; return true; });
     public void Heartbeat(string owner) => Access(state => { foreach (var a in state.Agents.Values.Where(a => a.Owner == owner)) a.LastSeen = DateTimeOffset.UtcNow; return true; });

@@ -10,6 +10,8 @@ public sealed class AppSettings : INotifyPropertyChanged
     public string TransportExecutable { get; set; } = "";
     public List<StoredAgentProfile> AgentProfiles { get; set; } = [];
     public bool AgentIntegrationPromptHandled { get; set; }
+    public string ManagedCodexThreadId { get; set; } = "";
+    public List<StoredChatEntry> ManagedCodexChatHistory { get; set; } = [];
     private string _displayName = Environment.MachineName;
     private string _localEndpointId = "";
     private string _localEndpointAddress = "";
@@ -47,4 +49,12 @@ public sealed class AppSettings : INotifyPropertyChanged
         Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
         File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
     }
+}
+
+public sealed class StoredChatEntry
+{
+    public string Sender { get; set; } = "";
+    public string Text { get; set; } = "";
+    public DateTimeOffset Timestamp { get; set; }
+    public bool IsLocal { get; set; }
 }

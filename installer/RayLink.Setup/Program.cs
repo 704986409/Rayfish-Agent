@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.ComponentModel;
 using System.Reflection;
 using Microsoft.Win32;
 using System.Windows.Forms;
@@ -8,7 +9,7 @@ namespace RayLink.Setup;
 internal static class Program
 {
     private const string ProductName = "AgentLink";
-    private const string ProductVersion = "0.2.0";
+    private const string ProductVersion = "0.3.4";
     private static readonly string InstallDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), ProductName);
 
@@ -46,8 +47,11 @@ internal static class Program
         progress.Show();
         progress.SetStatus("准备安装文件…");
 
-        Directory.CreateDirectory(InstallDirectory);
         var appPath = Path.Combine(InstallDirectory, "AgentLink.exe");
+        progress.SetStatus("正在关闭旧版 AgentLink…");
+        StopRunningAgentLinkProcesses(appPath);
+
+        Directory.CreateDirectory(InstallDirectory);
         ExtractResource("payload\\AgentLink.exe", appPath);
         var setupPath = Path.Combine(InstallDirectory, "AgentLink.Setup.exe");
         var currentSetup = Environment.ProcessPath;
@@ -86,6 +90,44 @@ internal static class Program
             ProductName,
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
+    }
+
+    // MCP sessions run AgentLink.exe in the background for as long as their
+    // Codex/ChatGPT session is open. Close only binaries installed by this
+    // product, never their parent application, before replacing the payload.
+    private static void StopRunningAgentLinkProcesses(string appPath)
+    {
+        var installedPath = Path.GetFullPath(appPath);
+        var remaining = new List<int>();
+        foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(appPath)))
+        {
+            try
+            {
+                string? executablePath;
+                try { executablePath = process.MainModule?.FileName; }
+                catch (Win32Exception) { continue; }
+                if (string.IsNullOrWhiteSpace(executablePath) ||
+                    !string.Equals(Path.GetFullPath(executablePath), installedPath, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (process.MainWindowHandle != IntPtr.Zero)
+                {
+                    process.CloseMainWindow();
+                    process.WaitForExit(2_000);
+                }
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(10_000);
+                }
+                if (!process.HasExited) remaining.Add(process.Id);
+            }
+            catch (InvalidOperationException) { }
+            catch (Win32Exception) { remaining.Add(process.Id); }
+            finally { process.Dispose(); }
+        }
+        if (remaining.Count > 0)
+            throw new InvalidOperationException($"无法关闭旧版 AgentLink 进程（PID：{string.Join(", ", remaining)}）。请重启电脑后重试安装。");
     }
 
     private static void Uninstall()
