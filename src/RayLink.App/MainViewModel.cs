@@ -267,6 +267,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             {
                 foreach (var id in discovered.Keys.Where(id => id.StartsWith("codex-process-", StringComparison.Ordinal)).ToArray())
                     discovered.Remove(id);
+                foreach (var id in discovered.Values
+                             .Where(a => string.Equals(a.Provider, "Codex", StringComparison.OrdinalIgnoreCase) && a.Id != "managed-codex")
+                             .Select(a => a.Id).ToArray())
+                    discovered.Remove(id);
                 discovered["managed-codex"] = new AgentProfile("managed-codex", "Codex", "Codex", "AgentLink 受管会话", "桌面与远程消息将直接追加到同一 Codex 会话。") { IsOnline = true };
             }
             for (var i = Agents.Count - 1; i >= 0; i--)

@@ -131,7 +131,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
             _stop = new CancellationTokenSource();
             _ = ReadStdoutAsync(_process.StandardOutput, _stop.Token);
             _ = ReadStderrAsync(_process.StandardError, _stop.Token);
-            await RequestAsync("initialize", new { clientInfo = new { name = "agentlink", title = "AgentLink", version = "0.3.4" } }, cancellationToken);
+            await RequestAsync("initialize", new { clientInfo = new { name = "agentlink", title = "AgentLink", version = "0.3.5" } }, cancellationToken);
             await NotifyAsync("initialized", new { }, cancellationToken);
             StatusChanged?.Invoke(this, "Codex 已连接，准备接收消息。");
         }
@@ -175,7 +175,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
                     try { ProcessMessage(json); parsed = true; }
                     catch (JsonException ex) { StatusChanged?.Invoke(this, $"忽略一条格式异常的 Codex 事件：{ex.Message}"); }
                 }
-                if (!parsed && !string.IsNullOrWhiteSpace(line))
+                if (!parsed && line.Any(ch => !char.IsControl(ch) && !char.IsWhiteSpace(ch)))
                     StatusChanged?.Invoke(this, "忽略一条非 JSON 的 Codex 输出，事件监听仍在继续。");
             }
         }

@@ -9,7 +9,7 @@ namespace RayLink.Setup;
 internal static class Program
 {
     private const string ProductName = "AgentLink";
-    private const string ProductVersion = "0.3.4";
+    private const string ProductVersion = "0.3.5";
     private static readonly string InstallDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), ProductName);
 

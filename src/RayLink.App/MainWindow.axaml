@@ -454,7 +454,7 @@
                 <StackPanel Spacing="8">
                   <TextBlock Classes="section-title" Text="关于 AgentLink" />
                   <TextBlock Classes="muted" Text="AgentLink 使用 Iroh QUIC、Relay 与 NAT 穿透能力实现跨网络节点通信。" />
-                  <TextBlock Classes="caption" Text="当前版本 0.3.4 · Windows 原生风格界面" />
+                  <TextBlock Classes="caption" Text="当前版本 0.3.5 · Windows 原生风格界面" />
                 </StackPanel>
               </Border>
             </StackPanel>
