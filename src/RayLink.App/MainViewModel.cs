@@ -37,6 +37,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     private bool _isActivationPromptOpen;
     private readonly AiAgentService _aiAgents = new();
     private readonly CodexAppServerService _codex = new();
+    private readonly ExternalAgentSessionService _externalAgents = new();
 
     public AppSettings Settings { get; }
     public ObservableCollection<ChatEntry> Messages { get; } = [];
@@ -351,9 +352,46 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             }
             else
             {
-                var message = await Task.Run(() => _aiAgents.Send(SelectedAgent.Id, text));
-                AgentChatMessages.Add(new ChatEntry("我", message.Text, message.Timestamp, true));
+                if (SelectedAgent.Provider.Contains("Claude", StringComparison.OrdinalIgnoreCase) || SelectedAgent.Provider.Contains("Cursor", StringComparison.OrdinalIgnoreCase))
+                {
+                    AgentChatMessages.Add(new ChatEntry("我", text, DateTimeOffset.Now, true));
+                    AgentChatDraft = "";
+                    var reply = await _externalAgents.SendAsync(SelectedAgent.Provider, text);
+                    AgentChatMessages.Add(new ChatEntry(SelectedAgent.Provider, reply, DateTimeOffset.Now, false));
+                    return;
+                }
+                // UI profile ids may be friendly names (for example
+                // claude-code), while MCP registers a stable mcp-<provider>
+                // id. Resolve the live registration before queueing.
+                var targetId = SelectedAgent.Id;
+                if (targetId.Contains("claude", StringComparison.OrdinalIgnoreCase) ||
+                    targetId.Contains("cursor", StringComparison.OrdinalIgnoreCase))
+                {
+                    var live = _aiAgents.Discover().FirstOrDefault(a =>
+                        a.IsOnline && (a.Provider.Contains(SelectedAgent.Provider, StringComparison.OrdinalIgnoreCase) ||
+                                       a.Name.Contains(SelectedAgent.Provider, StringComparison.OrdinalIgnoreCase)));
+                    if (live != null) targetId = live.Id;
+                }
+                var message = await Task.Run(() => _aiAgents.Send(targetId, text));
+                AgentChatMessages.Add(new ChatEntry("我", text, DateTimeOffset.Now, true));
                 AgentChatDraft = "";
+                // MCP clients (Claude, Cursor, and future clients) receive the
+                // queued message through agentlink_receive. Keep watching the
+                // shared inbox so their agentlink_reply appears in this chat.
+                _ = Task.Run(async () =>
+                {
+                    var seen = message.Sequence;
+                    for (var i = 0; i < 60; i++)
+                    {
+                        await Task.Delay(1000);
+                        var replies = _aiAgents.ReadMessages(targetId).Where(x => x.Sequence > seen && !x.IsLocal).ToList();
+                        foreach (var reply in replies)
+                        {
+                            seen = Math.Max(seen, reply.Sequence);
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => AgentChatMessages.Add(new ChatEntry(reply.Sender, reply.Text, reply.Timestamp, false)));
+                        }
+                    }
+                });
             }
         }
         catch (Exception ex)
