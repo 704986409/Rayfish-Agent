@@ -110,7 +110,11 @@ public sealed class AiAgentService
     {
         var agent = RequireAgent(state, owner); agent.LastSeen = DateTimeOffset.UtcNow;
         var last = state.Messages.TryGetValue(agent.InstanceId, out var messages) ? messages.LastOrDefault(m => !string.IsNullOrWhiteSpace(m.FromAgentId)) : null;
-        return last is null ? AddIncoming(state, agent.InstanceId, text, "agent", "", "") : QueueOutbound(state, agent, last.FromAgentId, text, last.ConversationId, last.MessageId);
+        // Desktop-originated messages are stored in the local conversation;
+        // remote-originated messages must be routed back over Iroh.
+        return last is null || string.Equals(last.FromAgentId, "desktop", StringComparison.OrdinalIgnoreCase)
+            ? AddIncoming(state, agent.InstanceId, text, "agent", last?.ConversationId ?? "", last?.MessageId ?? "")
+            : QueueOutbound(state, agent, last.FromAgentId, text, last.ConversationId, last.MessageId);
     });
 
     public DirectorySnapshot GetSharedSnapshot() => Access(state => new DirectorySnapshot(state.NodeId, state.NodeName, state.DirectoryVersion, state.Agents.Values.Where(a => IsLive(a) && a.Shared).Select(a => ToDirectoryAgent(state, a, "remote")).ToList()));

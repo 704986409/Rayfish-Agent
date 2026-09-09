@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="RayLink.App.AgentChatWindow"
+        Title="Agent 聊天"
+        Width="560" Height="520"
+        MinWidth="380" MinHeight="300"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner">
+  <Border Classes="surface" Padding="22">
+    <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+      <Grid PointerPressed="OnTitleBarPointerPressed" ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="2">
+          <TextBlock Classes="section-title" Text="Agent 聊天"/>
+          <TextBlock Classes="muted" Text="{Binding SelectedAgent.Name}"/>
+        </StackPanel>
+        <Button Grid.Column="1" Content="关闭" Classes="secondary" Command="{Binding CloseAgentChatCommand}"/>
+      </Grid>
+      <ScrollViewer x:Name="AgentChatScroll" Grid.Row="1" VerticalScrollBarVisibility="Hidden" PointerWheelChanged="OnChatScrollInteraction">
+        <ItemsControl ItemsSource="{Binding AgentChatMessages}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Classes="message" Classes.local="{Binding IsLocal}" Margin="0,0,0,8">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="{Binding Sender}" Classes="caption"/>
+                  <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding Time}" Classes="caption"/>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox x:Name="AgentChatInput" Text="{Binding AgentChatDraft}" PlaceholderText="输入消息" AcceptsReturn="False"/>
+        <Button Grid.Column="1" Content="发送" Classes="primary" Command="{Binding SendAgentChatCommand}" IsEnabled="{Binding CanSendAgentChat}"/>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

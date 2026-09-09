@@ -17,6 +17,7 @@ public partial class MainWindow : Window
 {
     private bool _closing;
     private bool _disposed;
+    private AgentChatWindow? _agentChatWindow;
     private readonly DispatcherTimer _chatScrollbarTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     public MainWindow()
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
         vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsMessagesPage) && vm.IsMessagesPage) QueueScrollToLatest();
+            if (e.PropertyName == nameof(MainViewModel.IsAgentChatOpen) && vm.IsAgentChatOpen) OpenAgentChatWindow(vm);
         };
         Closing += async (_, e) =>
         {
@@ -60,6 +62,15 @@ public partial class MainWindow : Window
     }
 
 
+
+
+    private void OpenAgentChatWindow(MainViewModel vm)
+    {
+        if (_agentChatWindow is { IsVisible: true }) { _agentChatWindow.Activate(); return; }
+        _agentChatWindow = new AgentChatWindow(vm);
+        _agentChatWindow.Closed += (_, _) => _agentChatWindow = null;
+        _agentChatWindow.Show(this);
+    }
 
     private static AgentProfile? GetAgentFromMenu(object? sender)
     {

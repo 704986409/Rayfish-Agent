@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using System.Diagnostics;
 using RayLink.App.Models;
 using RayLink.App.Services;
 
@@ -28,6 +29,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     private string _profileName = "";
     private string _profileRole = "";
     private string _profileDescription = "";
+    private string _profileInstallPath = "";
     private int _profileAvatarIndex;
     private bool _isAgentChatOpen;
     private string _agentChatDraft = "";
@@ -42,6 +44,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public AppSettings Settings { get; }
     public ObservableCollection<ChatEntry> Messages { get; } = [];
     public ObservableCollection<AgentProfile> Agents { get; } = [];
+    public ObservableCollection<InstalledDesktopClient> InstalledClients { get; } = [];
     public ObservableCollection<ChatEntry> AgentChatMessages { get; } = [];
     public int[] AvatarChoices { get; } = [0, 1, 2, 3, 4, 5];
     public AgentProfile? SelectedAgent { get => _selectedAgent; set { Set(ref _selectedAgent, value); if (value != null) LoadProfile(value); } }
@@ -52,6 +55,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public string ProfileName { get => _profileName; set => Set(ref _profileName,value); }
     public string ProfileRole { get => _profileRole; set => Set(ref _profileRole,value); }
     public string ProfileDescription { get => _profileDescription; set => Set(ref _profileDescription,value); }
+    public string ProfileInstallPath { get => _profileInstallPath; private set { Set(ref _profileInstallPath,value); OnPropertyChanged(nameof(HasProfileInstallPath)); } }
+    public bool HasProfileInstallPath => !string.IsNullOrWhiteSpace(ProfileInstallPath);
     public int ProfileAvatarIndex { get => _profileAvatarIndex; set => Set(ref _profileAvatarIndex,value); }
     public ICommand NavigateCommand { get; }
     public ICommand SaveSettingsCommand { get; }
@@ -62,6 +67,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     public ICommand CopyEndpointCommand { get; }
     public ICommand CloseConnectionDialogCommand { get; }
     public ICommand RefreshAgentsCommand { get; }
+    public ICommand StartDesktopClientCommand { get; }
+    public ICommand InjectMcpCommand { get; }
     public ICommand EditAgentCommand { get; }
     public ICommand SaveAgentProfileCommand { get; }
     public ICommand CloseProfileDialogCommand { get; }
@@ -236,6 +243,42 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             if (!IsConnecting) IsConnectionDialogOpen = false;
         });
         RefreshAgentsCommand = new RelayCommand(_ => RefreshAgents());
+        StartDesktopClientCommand = new RelayCommand(p =>
+        {
+            // Keep Codex on the existing managed-session activation path.
+            if (p is AgentProfile { IsCodex: true } codex)
+            {
+                _activationTarget = codex;
+                IsActivationPromptOpen = true;
+                return;
+            }
+            var client = p is InstalledDesktopClient installed ? installed : p is AgentProfile agent
+                ? InstalledClients.FirstOrDefault(x => x.Id == agent.Id || x.Name.Equals(agent.Provider, StringComparison.OrdinalIgnoreCase)) : null;
+            if (client == null) { AppendLog("未找到客户端启动程序，请确认客户端已安装后刷新。"); return; }
+            try
+            {
+                Process.Start(new ProcessStartInfo("cmd.exe", $"/d /c start \"\" /b \"{client.Command}\"") { UseShellExecute = false, CreateNoWindow = true });
+                if (p is AgentProfile profile) profile.IsOnline = true;
+            }
+            catch (Exception ex) { AppendLog($"启动失败：{ex.Message}"); }
+        });
+        InjectMcpCommand = new RelayCommand(p =>
+        {
+            if (p is not AgentProfile profile) return;
+            try
+            {
+                var integration = new McpClientIntegrationService();
+                if (profile.Provider.Contains("Claude", StringComparison.OrdinalIgnoreCase)) integration.EnableClaudeCode();
+                else if (profile.Provider.Contains("Cursor", StringComparison.OrdinalIgnoreCase)) integration.EnableCursor();
+                else if (profile.Provider.Contains("Codex", StringComparison.OrdinalIgnoreCase)) new CodexMcpIntegrationService().Enable();
+                else throw new InvalidOperationException("暂不支持此客户端的一键 MCP 注入。");
+                profile.IsMcpInjected = true;
+                profile.IsInstalled = true;
+                OnPropertyChanged(nameof(Agents));
+                AppendLog($"已为 {profile.Provider} 注入 AgentLink MCP。");
+            }
+            catch (Exception ex) { AppendLog($"注入 {profile.Provider} MCP 失败：{ex.Message}"); }
+        });
         EditAgentCommand = new RelayCommand(p => { if (p is AgentProfile a) { SelectedAgent=a; IsProfileDialogOpen=true; } });
         SaveAgentProfileCommand = new RelayCommand(_ => SaveAgentProfile());
         CloseProfileDialogCommand = new RelayCommand(_ => IsProfileDialogOpen=false);
@@ -258,6 +301,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
     {
         try
         {
+            InstalledClients.Clear();
+            foreach (var client in new DesktopClientScanner().Scan()) InstalledClients.Add(client);
+            AppendLog($"已扫描到 {InstalledClients.Count} 个桌面端工具。 ");
             var selectedId = SelectedAgent?.Id;
             var discovered = _aiAgents.Discover()
                 // A Codex MCP child can use either the old stable id or the
@@ -266,6 +312,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                 .Where(a => !IsLegacyCodexMcpRegistration(a))
                 .GroupBy(a => a.Id, StringComparer.Ordinal)
                 .Select(g => g.First()).ToDictionary(a => a.Id, StringComparer.Ordinal);
+            foreach (var c in InstalledClients)
+            {
+                if (!discovered.ContainsKey(c.Id)) discovered[c.Id] = new AgentProfile(c.Id, c.Name, c.Name, "桌面端工具", "已安装的 MCP 客户端");
+                discovered[c.Id].IsInstalled = true; discovered[c.Id].IsMcpInjected = c.IsInjected; discovered[c.Id].InstallPath = c.Command;
+            }
             var hasManagedCodex = !string.IsNullOrWhiteSpace(Settings.ManagedCodexThreadId);
             if (hasManagedCodex)
             {
@@ -277,13 +328,21 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                     discovered.Remove(id);
                 discovered["managed-codex"] = new AgentProfile("managed-codex", "Codex", "Codex", "AgentLink 受管会话", "桌面与远程消息将直接追加到同一 Codex 会话。") { IsOnline = true };
             }
+            // Session IDs differ from installation IDs (for example managed-codex).
+            foreach (var agent in discovered.Values)
+            {
+                var client = InstalledClients.FirstOrDefault(c => c.Name.Equals(agent.Provider, StringComparison.OrdinalIgnoreCase));
+                agent.IsInstalled = client != null;
+                agent.IsMcpInjected = DesktopClientScanner.IsMcpConfigured(agent.Provider);
+                agent.InstallPath = client?.Command ?? "";
+            }
             for (var i = Agents.Count - 1; i >= 0; i--)
                 if (!discovered.ContainsKey(Agents[i].Id)) Agents.RemoveAt(i);
             foreach (var a in discovered.Values)
             {
                 var current = Agents.FirstOrDefault(x => x.Id == a.Id);
                 if (current == null) Agents.Add(a);
-                else current.IsOnline = a.IsOnline;
+                else { current.IsOnline = a.IsOnline; current.IsInstalled = a.IsInstalled; current.IsMcpInjected = a.IsMcpInjected; current.InstallPath = a.InstallPath; }
                 var item = current ?? a;
                 var saved = Settings.AgentProfiles.FirstOrDefault(x => x.Id == item.Id);
                 if (saved != null) { item.Name=saved.Name; item.Role=saved.Role; item.Description=saved.Description; item.AvatarIndex=saved.AvatarIndex; }
@@ -357,7 +416,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                     AgentChatMessages.Add(new ChatEntry("我", text, DateTimeOffset.Now, true));
                     AgentChatDraft = "";
                     var reply = await _externalAgents.SendAsync(SelectedAgent.Provider, text);
-                    AgentChatMessages.Add(new ChatEntry(SelectedAgent.Provider, reply, DateTimeOffset.Now, false));
+                    AgentChatMessages.Add(new ChatEntry(SelectedAgent.Provider, string.IsNullOrWhiteSpace(reply) ? "Agent 已完成处理，但没有返回文本。" : reply, DateTimeOffset.Now, false));
                     return;
                 }
                 // UI profile ids may be friendly names (for example
@@ -416,7 +475,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         catch (Exception ex) { AppendLog($"保存 Codex 聊天历史失败：{ex.Message}"); }
     }
 
-    private void LoadProfile(AgentProfile a) { ProfileName=a.Name; ProfileRole=a.Role; ProfileDescription=a.Description; ProfileAvatarIndex=a.AvatarIndex; }
+    private void LoadProfile(AgentProfile a) { ProfileName=a.Name; ProfileRole=a.Role; ProfileDescription=a.Description; ProfileAvatarIndex=a.AvatarIndex; ProfileInstallPath=a.InstallPath; }
     private void SaveAgentProfile()
     {
         if (SelectedAgent == null) return;
