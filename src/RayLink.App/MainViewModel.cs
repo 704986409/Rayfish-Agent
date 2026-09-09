@@ -259,7 +259,10 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
         {
             var selectedId = SelectedAgent?.Id;
             var discovered = _aiAgents.Discover()
-                .Where(a => a.Id != "codex-mcp-client")
+                // A Codex MCP child can use either the old stable id or the
+                // provider/name reported by older AgentLink builds.  These
+                // are transport registrations, not user-facing agents.
+                .Where(a => !IsLegacyCodexMcpRegistration(a))
                 .GroupBy(a => a.Id, StringComparer.Ordinal)
                 .Select(g => g.First()).ToDictionary(a => a.Id, StringComparer.Ordinal);
             var hasManagedCodex = !string.IsNullOrWhiteSpace(Settings.ManagedCodexThreadId);
@@ -287,6 +290,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
             if (selectedId != null) SelectedAgent = Agents.FirstOrDefault(a => a.Id == selectedId);
         }
         catch (Exception ex) { AppendLog($"刷新 Agent 失败：{ex.Message}"); }
+    }
+
+    private static bool IsLegacyCodexMcpRegistration(AgentProfile agent)
+    {
+        static bool Matches(string value) => string.Equals(value.Trim(), "codex-mcp-client", StringComparison.OrdinalIgnoreCase);
+        return Matches(agent.Id) || Matches(agent.Provider) || Matches(agent.Name);
     }
 
     public void OpenAgentChat(AgentProfile agent)
@@ -332,7 +341,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IAsyncDisposable
                 AgentChatDraft = "";
                 Settings.ManagedCodexThreadId = await _codex.EnsureThreadAsync(Settings.ManagedCodexThreadId);
                 Settings.Save();
-                await _codex.SendAsync(Settings.ManagedCodexThreadId, text);
+                var submittedThreadId = await _codex.SendAsync(Settings.ManagedCodexThreadId, text);
+                if (!string.Equals(submittedThreadId, Settings.ManagedCodexThreadId, StringComparison.Ordinal))
+                {
+                    Settings.ManagedCodexThreadId = submittedThreadId;
+                    Settings.Save();
+                }
                 AgentChatMessages.Add(new ChatEntry("AgentLink", "消息已提交到 Codex 会话“AgentLink · Codex”，正在等待回复。该会话也会出现在 Codex 最近会话中。", DateTimeOffset.Now, false));
             }
             else

@@ -9,6 +9,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
 {
     private readonly SemaphoreSlim _startLock = new(1, 1);
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly SemaphoreSlim _turnLock = new(1, 1);
     private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _requests = new();
     private Process? _process;
     private StreamWriter? _input;
@@ -48,6 +49,11 @@ public sealed class CodexAppServerService : IAsyncDisposable
             StatusChanged?.Invoke(this, "原 Codex 会话已找不到，正在自动创建新会话。");
             return await StartThreadAsync(cancellationToken);
         }
+        catch (InvalidOperationException ex) when (IsActiveWriterError(ex))
+        {
+            StatusChanged?.Invoke(this, "原 Codex 会话正被其他客户端占用，正在创建 AgentLink 专用会话。");
+            return await StartThreadAsync(cancellationToken);
+        }
         catch (TimeoutException)
         {
             StatusChanged?.Invoke(this, "恢复原 Codex 会话超时，正在自动创建新会话。");
@@ -55,24 +61,56 @@ public sealed class CodexAppServerService : IAsyncDisposable
         }
     }
 
-    public async Task SendAsync(string threadId, string text, CancellationToken cancellationToken = default)
+    public async Task<string> SendAsync(string threadId, string text, CancellationToken cancellationToken = default)
     {
-        // turn/start acknowledges submission before the model has finished. Do
-        // not hold the UI command open while Codex refreshes models or starts
-        // MCP servers; the actual reply arrives through notifications below.
+        // Only one submission may be made at a time by this client.  If the
+        // persisted thread is owned by Codex Desktop (or another stale client),
+        // transparently move this message to a fresh AgentLink thread.
+        await _turnLock.WaitAsync(cancellationToken);
+        try
+        {
+            try
+            {
+                await SubmitTurnAsync(threadId, text, cancellationToken);
+                return threadId;
+            }
+            catch (InvalidOperationException ex) when (IsActiveWriterError(ex))
+            {
+                StatusChanged?.Invoke(this, "Codex 会话被其他客户端占用，已自动切换到新的 AgentLink 会话。");
+                var replacement = await StartThreadAsync(cancellationToken);
+                await SubmitTurnAsync(replacement, text, cancellationToken);
+                return replacement;
+            }
+        }
+        finally
+        {
+            _turnLock.Release();
+        }
+    }
+
+    private async Task SubmitTurnAsync(string threadId, string text, CancellationToken cancellationToken)
+    {
         var id = Interlocked.Increment(ref _nextId);
         var pending = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         if (!_requests.TryAdd(id, pending)) throw new InvalidOperationException("Codex 请求编号冲突。");
         try
         {
             await WriteAsync(new { jsonrpc = "2.0", id, method = "turn/start", @params = new { threadId, input = new[] { new { type = "text", text } } } }, cancellationToken);
+            // The acknowledgement is normally immediate.  Wait briefly so an
+            // active-writer error can be recovered synchronously; model output
+            // itself continues through the notification stream.
+            try { await pending.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken); }
+            catch (TimeoutException) { _ = ObserveTurnSubmissionAsync(id, pending); }
         }
         catch
         {
             _requests.TryRemove(id, out _);
             throw;
         }
-        _ = ObserveTurnSubmissionAsync(id, pending);
+        finally
+        {
+            if (pending.Task.IsCompleted) _requests.TryRemove(id, out _);
+        }
     }
 
     private async Task ObserveTurnSubmissionAsync(int id, TaskCompletionSource<JsonElement> pending)
@@ -131,7 +169,7 @@ public sealed class CodexAppServerService : IAsyncDisposable
             _stop = new CancellationTokenSource();
             _ = ReadStdoutAsync(_process.StandardOutput, _stop.Token);
             _ = ReadStderrAsync(_process.StandardError, _stop.Token);
-            await RequestAsync("initialize", new { clientInfo = new { name = "agentlink", title = "AgentLink", version = "0.3.5" } }, cancellationToken);
+            await RequestAsync("initialize", new { protocolVersion = "2025-06-18", clientInfo = new { name = "agentlink", title = "AgentLink", version = "0.3.6" } }, cancellationToken);
             await NotifyAsync("initialized", new { }, cancellationToken);
             StatusChanged?.Invoke(this, "Codex 已连接，准备接收消息。");
         }
@@ -196,6 +234,9 @@ public sealed class CodexAppServerService : IAsyncDisposable
             return;
         }
         if (!root.TryGetProperty("method", out var method) || !root.TryGetProperty("params", out var parameters)) return;
+        if (parameters.TryGetProperty("threadId", out var eventThread) &&
+            eventThread.ValueKind == JsonValueKind.String &&
+            !string.Equals(eventThread.GetString(), _activeThreadId, StringComparison.Ordinal)) return;
         var methodName = method.GetString();
         if (methodName == "item/agentMessage/delta" && parameters.TryGetProperty("itemId", out var itemId) &&
             parameters.TryGetProperty("delta", out var delta))
@@ -273,6 +314,10 @@ public sealed class CodexAppServerService : IAsyncDisposable
 
     private void FailPending(Exception error) { foreach (var request in _requests.Values) request.TrySetException(error); }
 
+    private static bool IsActiveWriterError(Exception ex) =>
+        ex.Message.Contains("active writer", StringComparison.OrdinalIgnoreCase) ||
+        ex.Message.Contains("already has an active writer", StringComparison.OrdinalIgnoreCase);
+
     private async Task StopAsync()
     {
         var process = _process; _process = null; _activeThreadId = "";
@@ -284,5 +329,5 @@ public sealed class CodexAppServerService : IAsyncDisposable
         finally { process.Dispose(); }
     }
 
-    public async ValueTask DisposeAsync() { await StopAsync(); _startLock.Dispose(); _writeLock.Dispose(); }
+    public async ValueTask DisposeAsync() { await StopAsync(); _startLock.Dispose(); _writeLock.Dispose(); _turnLock.Dispose(); }
 }
