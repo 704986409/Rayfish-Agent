@@ -1,4 +1,4 @@
-# Rayfish-Agent / AgentLink
+# AgentLink
 
 AgentLink 是一个基于 Iroh 的跨网络桌面通信原型。当前版本已经移除 Rayfish 虚拟网卡、虚拟 IPv6、Rayfish CLI 和 MSI，改为将 Iroh 原生 Rust 通信组件嵌入桌面端。
 
